@@ -1,10 +1,10 @@
 #!/bin/bash
-# LLM Studio Installation Script
+# OpenHammer LLM Studio Installation Script
 
 set -e
 
 echo "=============================================="
-echo "  LLM Studio - Installation Script"
+echo "  OpenHammer LLM Studio - Installation Script"
 echo "=============================================="
 echo ""
 

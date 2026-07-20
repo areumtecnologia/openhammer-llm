@@ -1,4 +1,4 @@
-# 🚀 LLM Studio
+# 🚀 OpenHammer LLM Studio
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)]()
@@ -29,9 +29,9 @@ Um aplicativo desktop completo que facilita a criação, treinamento e inferênc
 
 ## 🎯 Visão Geral
 
-O **LLM Studio** nasce do princípio de que qualquer pessoa deveria poder experimentar com modelos de linguagem sem precisar de equipamentos caros ou conhecimentos avançados de programação. Baseado no código minimalista de Andrej Karpathy, este projeto expande a ideia original para criar uma ferramenta completa e acessível.
+O **OpenHammer LLM Studio** nasce do princípio de que qualquer pessoa deveria poder experimentar com modelos de linguagem sem precisar de equipamentos caros ou conhecimentos avançados de programação. Baseado no código minimalista de Andrej Karpathy, este projeto expande a ideia original para criar uma ferramenta completa e acessível.
 
-### Por que usar o LLM Studio?
+### Por que usar o OpenHammer LLM Studio?
 
 - ✅ **Zero dependências pesadas**: Sem PyTorch, TensorFlow ou CUDA obrigatórios
 - ✅ **Hardware acessível**: Roda em laptops antigos, Raspberry Pi e máquinas sem GPU
@@ -281,7 +281,7 @@ python llm_studio_cli.py
 
 **Menu Principal:**
 ```
-=== LLM Studio CLI ===
+=== OpenHammer LLM Studio CLI ===
 1. Configurar Modelo
 2. Carregar Dataset
 3. Treinar Modelo
@@ -466,7 +466,7 @@ learning_rate: 0.002
 ## ❓ FAQ
 
 ### 1. Preciso de uma GPU para usar?
-**Não!** O LLM Studio foi projetado para rodar eficientemente em CPUs comuns. GPUs podem acelerar o processo, mas não são obrigatórias.
+**Não!** O OpenHammer LLM Studio foi projetado para rodar eficientemente em CPUs comuns. GPUs podem acelerar o processo, mas não são obrigatórias.
 
 ### 2. Quanto tempo leva para treinar um modelo?
 Depende da configuração:
