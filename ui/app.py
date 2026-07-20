@@ -78,7 +78,7 @@ class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("LLM Studio - Low-Cost Language Model Creator")
+        self.setWindowTitle("OpenHammer LLM Studio - Low-Cost Language Model Creator")
         self.setMinimumSize(1200, 800)
         
         # Initialize components
@@ -144,7 +144,7 @@ class MainWindow(QMainWindow):
         quick_group = QGroupBox("Quick Start")
         quick_layout = QVBoxLayout()
         quick_label = QLabel("""
-        <h3>Welcome to LLM Studio!</h3>
+        <h3>Welcome to OpenHammer LLM Studio!</h3>
         <p>Create and train language models on low-cost hardware.</p>
         <ol>
             <li>Configure your model architecture</li>
@@ -878,9 +878,9 @@ class MainWindow(QMainWindow):
     def _show_about(self):
         """Show about dialog"""
         QMessageBox.about(
-            self, "About LLM Studio",
+            self, "About OpenHammer LLM Studio",
             """
-            <h2>LLM Studio</h2>
+            <h2>OpenHammer LLM Studio</h2>
             <p>Low-Cost Language Model Creator</p>
             <p>Version 1.0.0</p>
             <p>Create and train language models on affordable hardware.</p>
@@ -908,9 +908,9 @@ def main():
     app.setStyle('Fusion')
     
     # Set application info
-    app.setApplicationName("LLM Studio")
+    app.setApplicationName("OpenHammer LLM Studio")
     app.setApplicationVersion("1.0.0")
-    app.setOrganizationName("LLM Studio")
+    app.setOrganizationName("OpenHammer LLM Studio")
     
     window = MainWindow()
     window.show()

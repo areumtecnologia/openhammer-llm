@@ -1,4 +1,4 @@
-# LLM Studio - Criador de Modelos de Linguagem para Hardware de Baixo Custo
+# OpenHammer LLM Studio - Criador de Modelos de Linguagem para Hardware de Baixo Custo
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)]()
@@ -27,7 +27,7 @@
 
 ## 🎯 Visão Geral
 
-O **LLM Studio** é um aplicativo desktop que transforma seu computador em uma estação completa para desenvolvimento de modelos de linguagem. Baseado no código minimalista de Andrej Karpathy, este projeto expande a funcionalidade com uma interface gráfica intuitiva e otimizações para hardware de baixo custo.
+O **OpenHammer LLM Studio** é um aplicativo desktop que transforma seu computador em uma estação completa para desenvolvimento de modelos de linguagem. Baseado no código minimalista de Andrej Karpathy, este projeto expande a funcionalidade com uma interface gráfica intuitiva e otimizações para hardware de baixo custo.
 
 ### Por Que Este Projeto?
 
@@ -331,7 +331,7 @@ python llm_studio_cli.py
 
 Menu principal:
 ```
-=== LLM Studio CLI ===
+=== OpenHammer LLM Studio CLI ===
 1. Configurar Modelo
 2. Carregar Dataset
 3. Treinar Modelo
@@ -537,7 +537,7 @@ steps: 3000-10000
 ### Perguntas Frequentes
 
 #### 1. Preciso de GPU para usar?
-**Não!** O LLM Studio foi projetado para rodar eficientemente em CPU. GPUs dedicadas aceleram o processo, mas não são necessárias.
+**Não!** O OpenHammer LLM Studio foi projetado para rodar eficientemente em CPU. GPUs dedicadas aceleram o processo, mas não são necessárias.
 
 #### 2. Qual o tamanho máximo de modelo que posso treinar?
 Depende da sua RAM:

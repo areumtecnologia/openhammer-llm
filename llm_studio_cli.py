@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LLM Studio - Command Line Interface
+OpenHammer LLM Studio - Command Line Interface
 For systems without GUI support
 """
 
@@ -20,7 +20,7 @@ from core.model import (
 def print_header():
     """Print application header"""
     print("\n" + "="*70)
-    print("  LLM Studio - Low-Cost Language Model Creator")
+    print("  OpenHammer LLM Studio - Low-Cost Language Model Creator")
     print("  CLI Edition")
     print("="*70 + "\n")
 
