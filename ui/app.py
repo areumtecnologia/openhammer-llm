@@ -61,7 +61,16 @@ class TrainingWorker(QThread):
             def callback(step, loss, elapsed, avg_step):
                 self.progress.emit(step, loss, elapsed, avg_step)
             
-            loss_history, total_time, avg_step_time = self.trainer.train(self.docs, callback=callback)
+            # Check if trainer is TorchTrainer (requires tokenizer parameter)
+            from core.model import TorchTrainer
+            if isinstance(self.trainer, TorchTrainer):
+                loss_history, total_time, avg_step_time = self.trainer.train(
+                    self.docs, self.tokenizer, callback=callback
+                )
+            else:
+                loss_history, total_time, avg_step_time = self.trainer.train(
+                    self.docs, callback=callback
+                )
             
             # Generate samples
             samples = []
