@@ -164,6 +164,12 @@ chmod +x install.sh
 .\install.ps1
 ```
 
+O script irá:
+1. Verificar se Python 3.8+ está instalado
+2. Criar ambiente virtual (opcional)
+3. Instalar dependências básicas (pyside6, psutil, datasets)
+4. Detectar hardware e sugerir stack de treinamento
+
 ### Método 2: Manual
 
 ```bash
@@ -176,16 +182,38 @@ python -m venv venv
 source venv/bin/activate  # Linux/macOS
 venv\Scripts\activate     # Windows
 
-# 3. Instale as dependências
-pip install -r requirements.txt
+# 3. Instale as dependências básicas
+pip install pyside6 psutil datasets
 ```
+
+### Seleção de Stack de Treinamento
+
+O OpenHammer LLM Studio suporta diferentes stacks de treinamento:
+
+#### CPU Only (Padrão)
+- ✅ **Vantagens:** Sem dependências extras, funciona em qualquer lugar
+- ❌ **Desvantagens:** Mais lento para modelos grandes
+- **Instalação:** `pip install pyside6 psutil datasets`
+
+#### GPU com CUDA (NVIDIA)
+- ✅ **Vantagens:** Até 10x mais rápido em GPUs compatíveis
+- ❌ **Desvantagens:** Requer GPU NVIDIA e PyTorch
+- **Instalação:** `pip install pyside6 psutil datasets torch --index-url https://download.pytorch.org/whl/cu118`
+
+#### GPU com Metal (Apple Silicon)
+- ✅ **Vantagens:** Aceleração nativa em Macs M1/M2/M3
+- ❌ **Desvantagens:** Apenas para Apple Silicon
+- **Instalação:** `pip install pyside6 psutil datasets torch`
 
 ### Instalação por Plataforma
 
 #### Windows
 ```powershell
-# Instalar dependências
+# Stack CPU (padrão)
 pip install pyside6 psutil datasets
+
+# Stack GPU (NVIDIA CUDA)
+pip install pyside6 psutil datasets torch --index-url https://download.pytorch.org/whl/cu118
 
 # Executar app
 python ui\app.py
@@ -193,8 +221,11 @@ python ui\app.py
 
 #### macOS
 ```bash
-# Instalar dependências
+# Stack CPU (padrão)
 pip install pyside6 psutil datasets
+
+# Stack GPU (Apple Silicon)
+pip install pyside6 psutil datasets torch
 
 # Executar app
 python ui/app.py
@@ -206,8 +237,11 @@ python ui/app.py
 sudo apt-get update
 sudo apt-get install -y python3-pip python3-venv libgl1-mesa-glx
 
-# Instalar dependências
+# Stack CPU (padrão)
 pip install pyside6 psutil datasets
+
+# Stack GPU (NVIDIA CUDA)
+pip install pyside6 psutil datasets torch --index-url https://download.pytorch.org/whl/cu118
 
 # Executar app
 python3 ui/app.py
@@ -225,7 +259,7 @@ sudo apt-get install -y python3-pip python3-venv
 python3 -m venv venv
 source venv/bin/activate
 
-# Instalar dependências (pode demorar)
+# Instalar dependências (use apenas CPU no Raspberry Pi)
 pip install pyside6 psutil datasets
 
 # Executar (use configs Tiny ou Small)

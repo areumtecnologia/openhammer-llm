@@ -35,7 +35,7 @@ if not HAS_QT:
 
 from core.model import (
     ModelConfig, TrainingConfig, HardwareProfile, GPTModel, 
-    Trainer, Tokenizer, DatasetManager, ExperimentResult
+    Trainer, Tokenizer, DatasetManager, ExperimentResult, TrainingStack
 )
 
 
@@ -95,11 +95,13 @@ class MainWindow(QMainWindow):
         self.dataset_manager = DatasetManager()
         self.hardware_profile = HardwareProfile.detect_system()
         self.current_result = None
+        self.selected_stack = TrainingStack(use_gpu=False, backend="cpu", dependencies=[])
         
         # Setup UI
         self._setup_ui()
         self._setup_menu()
         self._update_hardware_info()
+        self._update_stack_info()
     
     def _setup_ui(self):
         """Setup user interface"""
@@ -113,6 +115,7 @@ class MainWindow(QMainWindow):
         
         # Create tabs
         tabs.addTab(self._create_home_tab(), "🏠 Home")
+        tabs.addTab(self._create_stack_tab(), "⚡ Training Stack")
         tabs.addTab(self._create_model_tab(), "🔧 Model Config")
         tabs.addTab(self._create_dataset_tab(), "📊 Dataset")
         tabs.addTab(self._create_training_tab(), "🎯 Training")
@@ -168,6 +171,142 @@ class MainWindow(QMainWindow):
         
         layout.addStretch()
         return widget
+    
+    def _create_stack_tab(self) -> QWidget:
+        """Create training stack selection tab"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        # Stack selection group
+        stack_group = QGroupBox("Select Training Stack")
+        stack_layout = QVBoxLayout()
+        
+        stack_info_label = QLabel("""
+        <h3>Training Stack Selection</h3>
+        <p>Choose the backend for training your model:</p>
+        <ul>
+            <li><b>CPU Only:</b> No additional dependencies, works everywhere</li>
+            <li><b>GPU (CUDA):</b> Faster training, requires NVIDIA GPU and PyTorch</li>
+            <li><b>GPU (Metal):</b> Apple Silicon acceleration, requires PyTorch</li>
+        </ul>
+        """)
+        stack_info_label.setWordWrap(True)
+        stack_layout.addWidget(stack_info_label)
+        
+        # Available stacks
+        self.stack_combo = QComboBox()
+        self._populate_stack_options()
+        self.stack_combo.currentIndexChanged.connect(self._on_stack_changed)
+        stack_layout.addRow("Available Stacks:", self.stack_combo)
+        
+        # Stack details
+        self.stack_details_label = QLabel()
+        self.stack_details_label.setStyleSheet("QLabel { font-weight: bold; color: #2196F3; }")
+        stack_layout.addWidget(self.stack_details_label)
+        
+        # Dependencies info
+        self.dependencies_label = QLabel()
+        self.dependencies_label.setWordWrap(True)
+        self.dependencies_label.setStyleSheet("QLabel { color: #FF9800; }")
+        stack_layout.addWidget(self.dependencies_label)
+        
+        # Install button
+        self.install_deps_btn = QPushButton("📦 Install Required Dependencies")
+        self.install_deps_btn.clicked.connect(self._install_stack_dependencies)
+        self.install_deps_btn.setEnabled(False)
+        stack_layout.addWidget(self.install_deps_btn)
+        
+        stack_group.setLayout(stack_layout)
+        layout.addWidget(stack_group)
+        
+        # Current status
+        status_group = QGroupBox("Current Configuration")
+        status_layout = QFormLayout()
+        self.status_stack_label = QLabel("CPU")
+        self.status_backend_label = QLabel("cpu")
+        self.status_ready_label = QLabel("✓ Ready")
+        self.status_ready_label.setStyleSheet("QLabel { color: green; font-weight: bold; }")
+        
+        status_layout.addRow("Stack:", self.status_stack_label)
+        status_layout.addRow("Backend:", self.status_backend_label)
+        status_layout.addRow("Status:", self.status_ready_label)
+        
+        status_group.setLayout(status_layout)
+        layout.addWidget(status_group)
+        
+        layout.addStretch()
+        self._on_stack_changed(0)
+        return widget
+    
+    def _populate_stack_options(self):
+        """Populate stack selection dropdown"""
+        self.stack_combo.clear()
+        available_stacks = TrainingStack.detect_available()
+        
+        for stack in available_stacks:
+            icon = "🚀" if stack.use_gpu else "💻"
+            self.stack_combo.addItem(f"{icon} {stack.description}", stack)
+        
+        # Select recommended stack
+        hw = self.hardware_profile
+        if hw.recommended_stack != "cpu":
+            for i in range(self.stack_combo.count()):
+                stack = self.stack_combo.itemData(i)
+                if stack.backend == hw.recommended_stack:
+                    self.stack_combo.setCurrentIndex(i)
+                    break
+    
+    def _on_stack_changed(self, index: int):
+        """Handle stack selection change"""
+        stack = self.stack_combo.itemData(index)
+        if stack:
+            self.selected_stack = stack
+            self.stack_details_label.setText(stack.description)
+            
+            if stack.use_gpu:
+                deps = ", ".join(stack.dependencies)
+                self.dependencies_label.setText(f"⚠ Requires: {deps}")
+                self.install_deps_btn.setEnabled(True)
+            else:
+                self.dependencies_label.setText("✓ No additional dependencies required")
+                self.install_deps_btn.setEnabled(False)
+            
+            # Update status
+            self.status_stack_label.setText("GPU" if stack.use_gpu else "CPU")
+            self.status_backend_label.setText(stack.backend)
+            self.status_ready_label.setText("✓ Ready" if not stack.use_gpu else "⚠ Check dependencies")
+            self.status_ready_label.setStyleSheet(
+                "QLabel { color: green; font-weight: bold; }" if not stack.use_gpu 
+                else "QLabel { color: orange; font-weight: bold; }"
+            )
+    
+    def _install_stack_dependencies(self):
+        """Install dependencies for selected stack"""
+        if not self.selected_stack.use_gpu:
+            return
+        
+        deps = " ".join(self.selected_stack.dependencies)
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Information)
+        msg.setWindowTitle("Install Dependencies")
+        msg.setText(f"Install {deps}?")
+        msg.setInformativeText(f"Run: pip install {deps}")
+        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        
+        if msg.exec() == QMessageBox.Ok:
+            import subprocess
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install"] + self.selected_stack.dependencies)
+                QMessageBox.information(self, "Success", "Dependencies installed successfully!")
+                self._update_stack_info()
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to install dependencies: {e}")
+    
+    def _update_stack_info(self):
+        """Update stack information display"""
+        if hasattr(self, 'stack_combo'):
+            self._populate_stack_options()
+            self._on_stack_changed(self.stack_combo.currentIndex())
     
     def _create_model_tab(self) -> QWidget:
         """Create model configuration tab"""
@@ -709,6 +848,21 @@ class MainWindow(QMainWindow):
             )
             return
         
+        # Check if GPU stack is selected but torch is not installed
+        if self.selected_stack.use_gpu:
+            try:
+                import torch
+                if not torch.cuda.is_available() and self.selected_stack.backend == "cuda":
+                    raise ImportError("CUDA not available")
+            except ImportError:
+                QMessageBox.warning(
+                    self, "Warning",
+                    f"GPU training requires PyTorch. Please install dependencies:\n\n"
+                    f"pip install {' '.join(self.selected_stack.dependencies)}\n\n"
+                    f"Or switch to CPU-only mode in the Training Stack tab."
+                )
+                return
+        
         try:
             # Get training config
             train_config = TrainingConfig(
@@ -743,7 +897,7 @@ class MainWindow(QMainWindow):
             # Update UI
             self.start_train_btn.setEnabled(False)
             self.stop_train_btn.setEnabled(True)
-            self.status_label.setText("Status: Training...")
+            self.status_label.setText(f"Status: Training ({self.selected_stack.backend.upper()})")
             self.progress_bar.setValue(0)
             
             # Start training

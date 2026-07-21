@@ -1,18 +1,29 @@
 ```
-# Logs and temp files
-*.log
-*.tmp
-*.swp
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-# Environment
+# Dependencies
+.venv/
+venv/
+env/
 .env
 .env.local
 .env.*
 
+# Logs
+*.log
+
 # Editors
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# Original rules preserved
-*.log
+# Build artifacts
+dist/
+build/
+target/
 ```
