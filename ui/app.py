@@ -138,37 +138,171 @@ class MainWindow(QMainWindow):
         self._update_stack_info()
     
     def _setup_ui(self):
-        """Setup user interface"""
+        """Setup user interface with wizard-style flow"""
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
         
-        # Create tab widget
-        tabs = QTabWidget()
-        main_layout.addWidget(tabs)
+        # Title header
+        title_label = QLabel("<h1>🤖 OpenHammer LLM Studio - Assistente de Criação de Modelos</h1>")
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setStyleSheet("QLabel { font-size: 24px; font-weight: bold; color: #2196F3; padding: 10px; }")
+        main_layout.addWidget(title_label)
         
-        # Create tabs with wizard-style flow
-        tabs.addTab(self._create_home_tab(), "🏠 Home")
-        tabs.addTab(self._create_stack_tab(), "⚡ Training Stack")
-        tabs.addTab(self._create_model_tab(), "🔧 Model Config")
-        tabs.addTab(self._create_dataset_tab(), "📊 Dataset")
-        tabs.addTab(self._create_training_tab(), "🎯 Training")
-        tabs.addTab(self._create_inference_tab(), "💬 Inference")
-        tabs.addTab(self._create_results_tab(), "📈 Results")
-        tabs.addTab(self._create_models_tab(), "📦 Saved Models")
+        # Create stacked widget for wizard pages
+        self.wizard_stack = QStackedWidget()
+        main_layout.addWidget(self.wizard_stack, stretch=1)
+        
+        # Create wizard pages
+        self.wizard_pages = [
+            self._create_welcome_page(),      # Page 0: Welcome
+            self._create_stack_page(),         # Page 1: Stack
+            self._create_usecase_page(),       # Page 2: Use Case
+            self._create_model_page(),         # Page 3: Model Config
+            self._create_dataset_page(),       # Page 4: Dataset
+            self._create_training_page(),      # Page 5: Training
+            self._create_inference_page(),     # Page 6: Inference
+            self._create_results_page(),       # Page 7: Results
+            self._create_models_page(),        # Page 8: Saved Models
+        ]
+        
+        for page in self.wizard_pages:
+            self.wizard_stack.addWidget(page)
+        
+        # Navigation buttons (always visible at bottom)
+        nav_layout = QHBoxLayout()
+        nav_layout.addStretch()
+        
+        self.btn_back = QPushButton("◀ Voltar")
+        self.btn_back.clicked.connect(self._go_back)
+        self.btn_back.setMinimumSize(120, 40)
+        self.btn_back.setStyleSheet("""
+            QPushButton {
+                background-color: #9E9E9E;
+                color: white;
+                border-radius: 5px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #757575; }
+            QPushButton:disabled { background-color: #BDBDBD; }
+        """)
+        
+        self.btn_next = QPushButton("Avançar ▶")
+        self.btn_next.clicked.connect(self._go_next)
+        self.btn_next.setMinimumSize(120, 40)
+        self.btn_next.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                border-radius: 5px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #1976D2; }
+            QPushButton:disabled { background-color: #BDBDBD; }
+        """)
+        
+        self.btn_start = QPushButton("🚀 Iniciar Treinamento")
+        self.btn_start.clicked.connect(self._start_training)
+        self.btn_start.setMinimumSize(160, 40)
+        self.btn_start.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border-radius: 5px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #388E3C; }
+        """)
+        self.btn_start.hide()
+        
+        self.btn_stop = QPushButton("⏹ Parar")
+        self.btn_stop.clicked.connect(self._stop_training)
+        self.btn_stop.setMinimumSize(120, 40)
+        self.btn_stop.setStyleSheet("""
+            QPushButton {
+                background-color: #F44336;
+                color: white;
+                border-radius: 5px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #D32F2F; }
+        """)
+        self.btn_stop.hide()
+        
+        nav_layout.addWidget(self.btn_back)
+        nav_layout.addWidget(self.btn_start)
+        self.btn_start_position = nav_layout.count() - 1
+        nav_layout.addWidget(self.btn_stop)
+        nav_layout.addWidget(self.btn_next)
+        nav_layout.addStretch()
+        
+        main_layout.addLayout(nav_layout)
+        
+        # Progress indicator
+        progress_layout = QHBoxLayout()
+        self.progress_indicator = []
+        steps = ["Início", "Stack", "Propósito", "Modelo", "Dataset", "Treino", "Teste", "Resultados", "Modelos"]
+        for i, step_name in enumerate(steps):
+            lbl = QLabel(f"{i+1}. {step_name}")
+            lbl.setAlignment(Qt.AlignCenter)
+            lbl.setStyleSheet("QLabel { color: #9E9E9E; font-size: 11px; }")
+            lbl.setMinimumWidth(80)
+            self.progress_indicator.append(lbl)
+            progress_layout.addWidget(lbl)
+        
+        main_layout.addLayout(progress_layout)
         
         # Status bar
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage("Ready")
+        self.status_bar.showMessage("Bem-vindo! Clique em 'Avançar' para começar.")
+        
+        # Initialize navigation state
+        self._update_navigation_buttons()
     
-    def _create_home_tab(self) -> QWidget:
-        """Create home/welcome tab"""
+    def _create_welcome_page(self) -> QWidget:
+        """Create welcome page - Step 0"""
         widget = QWidget()
-        layout = QVBoxLayout(widget)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_content = QWidget()
+        scroll.setWidget(scroll_content)
+        layout = QVBoxLayout(scroll_content)
+        
+        # Welcome message
+        welcome_label = QLabel("""
+        <h2 style="color: #2196F3; font-size: 28px;">👋 Bem-vindo ao OpenHammer LLM Studio!</h2>
+        <p style="font-size: 16px;">Este assistente vai guiá-lo passo a passo na criação do seu próprio modelo de linguagem.</p>
+        """)
+        welcome_label.setWordWrap(True)
+        welcome_label.setStyleSheet("QLabel { padding: 20px; }")
+        layout.addWidget(welcome_label)
+        
+        # What you'll do
+        steps_group = QGroupBox("📋 O que você fará neste assistente:")
+        steps_layout = QVBoxLayout()
+        steps_info = QLabel("""
+        <ol style="font-size: 15px; line-height: 1.8;">
+            <li><b>Escolher a Tecnologia:</b> CPU ou GPU (CUDA/MPS)</li>
+            <li><b>Definir o Propósito:</b> Para que seu modelo será usado?</li>
+            <li><b>Configurar o Modelo:</b> Tamanho e arquitetura (ajustado automaticamente)</li>
+            <li><b>Carregar Dataset:</b> Dados para treinamento (HuggingFace ou local)</li>
+            <li><b>Treinar:</b> Acompanhe o progresso em tempo real</li>
+            <li><b>Testar:</b> Verifique se o modelo responde como esperado</li>
+            <li><b>Salvar:</b> Guarde seu modelo para uso futuro</li>
+        </ol>
+        """)
+        steps_info.setWordWrap(True)
+        steps_layout.addWidget(steps_info)
+        steps_group.setLayout(steps_layout)
+        layout.addWidget(steps_group)
         
         # Hardware info
-        hw_group = QGroupBox("Hardware Profile")
+        hw_group = QGroupBox("💻 Seu Hardware")
         hw_layout = QFormLayout()
         self.hw_ram_label = QLabel()
         self.hw_vram_label = QLabel()
@@ -180,87 +314,113 @@ class MainWindow(QMainWindow):
         hw_layout.addRow("VRAM:", self.hw_vram_label)
         hw_layout.addRow("CPU Cores:", self.hw_cpu_label)
         hw_layout.addRow("GPU:", self.hw_gpu_label)
-        hw_layout.addRow("Recommendation:", self.hw_recommendation_label)
+        hw_layout.addRow("Recomendação:", self.hw_recommendation_label)
         
         hw_group.setLayout(hw_layout)
         layout.addWidget(hw_group)
         
-        # Quick start
-        quick_group = QGroupBox("Quick Start")
-        quick_layout = QVBoxLayout()
-        quick_label = QLabel("""
-        <h3>Welcome to OpenHammer LLM Studio!</h3>
-        <p>Create and train language models on low-cost hardware.</p>
-        <ol>
-            <li>Configure your model architecture</li>
-            <li>Load or create a dataset</li>
-            <li>Train your model</li>
-            <li>Generate text with inference</li>
-        </ol>
-        <p><b>Tip:</b> Start with small models (2 layers, 32 embd) for testing.</p>
+        # Tips
+        tips_group = QGroupBox("💡 Dicas para Iniciantes")
+        tips_layout = QVBoxLayout()
+        tips_info = QLabel("""
+        <ul style="font-size: 14px; line-height: 1.6;">
+            <li>Comece com modelos pequenos (2-4 camadas) para testes rápidos</li>
+            <li>O ajuste automático de parâmetros configura tudo para você</li>
+            <li>Datasets menores treinam mais rápido - ideal para aprender</li>
+            <li>Se tiver GPU NVIDIA, selecione CUDA para aceleração significativa</li>
+            <li>Você pode voltar e ajustar configurações a qualquer momento</li>
+        </ul>
         """)
-        quick_label.setWordWrap(True)
-        quick_layout.addWidget(quick_label)
-        quick_group.setLayout(quick_layout)
-        layout.addWidget(quick_group)
+        tips_info.setWordWrap(True)
+        tips_layout.addWidget(tips_info)
+        tips_group.setLayout(tips_layout)
+        layout.addWidget(tips_group)
         
         layout.addStretch()
-        return widget
-    
-    def _create_stack_tab(self) -> QWidget:
-        """Create training stack selection tab"""
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
         
-        # Stack selection group
-        stack_group = QGroupBox("Select Training Stack")
+        main_widget = QWidget()
+        main_layout = QVBoxLayout(main_widget)
+        main_layout.addWidget(scroll)
+        return main_widget
+    
+    def _create_home_tab(self) -> QWidget:
+        """Legacy method - redirects to welcome page"""
+        return self._create_welcome_page()
+    
+    def _create_stack_page(self) -> QWidget:
+        """Create stack selection page - Step 1"""
+        widget = QWidget()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_content = QWidget()
+        scroll.setWidget(scroll_content)
+        layout = QVBoxLayout(scroll_content)
+        
+        # Header
+        header_label = QLabel("<h2 style='color: #2196F3;'>⚡ Passo 1: Escolha a Tecnologia de Treinamento</h2>")
+        header_label.setWordWrap(True)
+        layout.addWidget(header_label)
+        
+        # Info
+        info_label = QLabel("""
+        <p style='font-size: 15px;'>Selecione como seu modelo será treinado:</p>
+        <ul style='font-size: 14px; line-height: 1.6;'>
+            <li><b>💻 CPU (Python Puro):</b> Funciona em qualquer computador, sem instalações extras. Implementação educacional.</li>
+            <li><b>🚀 GPU (CUDA/MPS com PyTorch):</b> <span style='color: #4CAF50; font-weight: bold;'>✓ ACELERAÇÃO REAL DE GPU</span> - Até 1000x mais rápido em GPUs NVIDIA!</li>
+        </ul>
+        """)
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("QLabel { padding: 10px; background-color: #E3F2FD; border-radius: 5px; }")
+        layout.addWidget(info_label)
+        
+        # Stack selection
+        stack_group = QGroupBox("Selecionar Stack de Treinamento")
         stack_layout = QVBoxLayout()
         
-        stack_info_label = QLabel("""
-        <h3>Training Stack Selection</h3>
-        <p>Choose the backend for training your model:</p>
-        <ul>
-            <li><b>CPU Only (Pure Python):</b> No additional dependencies, works everywhere. Educational implementation using Value/Matrix classes.</li>
-            <li><b>GPU (CUDA/MPS) with PyTorch:</b> <span style="color: #4CAF50; font-weight: bold;">✓ TRUE GPU ACCELERATION</span> - Uses TorchGPTModel for native CUDA/Metal support with mixed precision training and KV caching.</li>
-        </ul>
-        <p style="color: #4CAF50;"><b>✓ Now with real GPU acceleration!</b> When PyTorch is installed and a GPU is available, training will use TorchGPTModel which runs on CUDA/MPS for significant speedup.</p>
-        """)
-        stack_info_label.setWordWrap(True)
-        stack_layout.addWidget(stack_info_label)
-        
-        # Available stacks
         self.stack_combo = QComboBox()
         self._populate_stack_options()
         self.stack_combo.currentIndexChanged.connect(self._on_stack_changed)
-        stack_layout.addWidget(QLabel("Available Stacks:"))
+        stack_layout.addWidget(QLabel("Tecnologia disponível:"))
         stack_layout.addWidget(self.stack_combo)
         
         # Stack details
         self.stack_details_label = QLabel()
-        self.stack_details_label.setStyleSheet("QLabel { font-weight: bold; color: #2196F3; }")
+        self.stack_details_label.setStyleSheet("QLabel { font-weight: bold; color: #2196F3; font-size: 14px; }")
+        self.stack_details_label.setWordWrap(True)
         stack_layout.addWidget(self.stack_details_label)
         
         # Dependencies info
         self.dependencies_label = QLabel()
         self.dependencies_label.setWordWrap(True)
-        self.dependencies_label.setStyleSheet("QLabel { color: #FF9800; }")
+        self.dependencies_label.setStyleSheet("QLabel { color: #FF9800; font-size: 13px; }")
         stack_layout.addWidget(self.dependencies_label)
         
         # Install button
-        self.install_deps_btn = QPushButton("📦 Install Required Dependencies")
+        self.install_deps_btn = QPushButton("📦 Instalar Dependências Necessárias")
         self.install_deps_btn.clicked.connect(self._install_stack_dependencies)
         self.install_deps_btn.setEnabled(False)
+        self.install_deps_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF9800;
+                color: white;
+                border-radius: 5px;
+                font-size: 13px;
+                font-weight: bold;
+                padding: 8px;
+            }
+            QPushButton:hover { background-color: #F57C00; }
+        """)
         stack_layout.addWidget(self.install_deps_btn)
         
         stack_group.setLayout(stack_layout)
         layout.addWidget(stack_group)
         
-        # Current status
-        status_group = QGroupBox("Current Configuration")
+        # Status
+        status_group = QGroupBox("Configuração Atual")
         status_layout = QFormLayout()
         self.status_stack_label = QLabel("CPU")
         self.status_backend_label = QLabel("cpu")
-        self.status_ready_label = QLabel("✓ Ready")
+        self.status_ready_label = QLabel("✓ Pronto")
         self.status_ready_label.setStyleSheet("QLabel { color: green; font-weight: bold; }")
         
         status_layout.addRow("Stack:", self.status_stack_label)
@@ -272,7 +432,15 @@ class MainWindow(QMainWindow):
         
         layout.addStretch()
         self._on_stack_changed(0)
-        return widget
+        
+        main_widget = QWidget()
+        main_layout = QVBoxLayout(main_widget)
+        main_layout.addWidget(scroll)
+        return main_widget
+    
+    def _create_stack_tab(self) -> QWidget:
+        """Legacy method - redirects to stack page"""
+        return self._create_stack_page()
     
     def _populate_stack_options(self):
         """Populate stack selection dropdown"""
@@ -366,99 +534,168 @@ class MainWindow(QMainWindow):
             self._populate_stack_options()
             self._on_stack_changed(self.stack_combo.currentIndex())
     
-    def _create_model_tab(self) -> QWidget:
-        """Create model configuration tab with use case selection"""
+    def _create_usecase_page(self) -> QWidget:
+        """Create use case selection page - Step 2"""
         widget = QWidget()
-        layout = QVBoxLayout(widget)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_content = QWidget()
+        scroll.setWidget(scroll_content)
+        layout = QVBoxLayout(scroll_content)
         
-        # Use Case Selection - Wizard Step 1
-        usecase_group = QGroupBox("Model Use Case (Purpose)")
+        # Header
+        header_label = QLabel("<h2 style='color: #2196F3;'>🎯 Passo 2: Defina o Propósito do Modelo</h2>")
+        header_label.setWordWrap(True)
+        layout.addWidget(header_label)
+        
+        # Info
+        info_label = QLabel("""
+        <p style='font-size: 15px;'>Para que você quer usar seu modelo? Isso ajuda a configurar automaticamente os parâmetros ideais.</p>
+        """)
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("QLabel { padding: 10px; background-color: #E3F2FD; border-radius: 5px; }")
+        layout.addWidget(info_label)
+        
+        # Use case selection
+        usecase_group = QGroupBox("Propósito do Modelo")
         usecase_layout = QVBoxLayout()
         
-        usecase_info_label = QLabel("""
-        <h3>Select Model Purpose</h3>
-        <p>Choose how your model will be used:</p>
-        """)
-        usecase_info_label.setWordWrap(True)
-        usecase_layout.addWidget(usecase_info_label)
-        
         self.usecase_combo = QComboBox()
-        self.usecase_combo.addItem("📝 Text Completion - Generate text continuations", "completion")
-        self.usecase_combo.addItem("💬 Chat/Conversation - Interactive dialogue", "chat")
-        self.usecase_combo.addItem("🔧 Function Calling - Tool/API integration", "function_calling")
-        self.usecase_combo.addItem("🤖 Agent - Autonomous task execution", "agent")
+        self.usecase_combo.addItem("📝 Completar Texto - Gerar continuições de texto", "completion")
+        self.usecase_combo.addItem("💬 Conversação - Diálogo interativo tipo chatbot", "chat")
+        self.usecase_combo.addItem("🔧 Chamada de Funções - Integração com APIs/ferramentas", "function_calling")
+        self.usecase_combo.addItem("🤖 Agente Autônomo - Execução de tarefas complexas", "agent")
         self.usecase_combo.currentIndexChanged.connect(self._on_usecase_changed)
+        self.usecase_combo.setStyleSheet("QComboBox { font-size: 14px; padding: 5px; }")
+        usecase_layout.addWidget(QLabel("Como seu modelo será usado?"))
         usecase_layout.addWidget(self.usecase_combo)
         
         # Use case details
         self.usecase_details_label = QLabel()
         self.usecase_details_label.setWordWrap(True)
-        self.usecase_details_label.setStyleSheet("QLabel { color: #2196F3; font-style: italic; }")
+        self.usecase_details_label.setStyleSheet("QLabel { color: #2196F3; font-style: italic; font-size: 14px; padding: 10px; background-color: #FFF3E0; border-radius: 5px; }")
         usecase_layout.addWidget(self.usecase_details_label)
         
         usecase_group.setLayout(usecase_layout)
         layout.addWidget(usecase_group)
         
-        # Model Architecture - Wizard Step 2
-        form_group = QGroupBox("Model Architecture")
+        # Auto-tune info
+        autotune_group = QGroupBox("⚙️ Ajuste Automático")
+        autotune_layout = QVBoxLayout()
+        autotune_info = QLabel("""
+        <p style='font-size: 14px;'>Na próxima tela, os parâmetros do modelo serão ajustados automaticamente com base no propósito selecionado.</p>
+        <ul style='font-size: 13px;'>
+            <li><b>Completar Texto:</b> Modelo leve e rápido</li>
+            <li><b>Conversação:</b> Contexto maior para diálogos</li>
+            <li><b>Funções/Agente:</b> Mais camadas para raciocínio</li>
+        </ul>
+        <p style='font-size: 13px; color: #666;'>Você ainda poderá ajustar manualmente se desejar!</p>
+        """)
+        autotune_info.setWordWrap(True)
+        autotune_layout.addWidget(autotune_info)
+        autotune_group.setLayout(autotune_layout)
+        layout.addWidget(autotune_group)
+        
+        layout.addStretch()
+        
+        main_widget = QWidget()
+        main_layout = QVBoxLayout(main_widget)
+        main_layout.addWidget(scroll)
+        return main_widget
+    
+    def _create_model_page(self) -> QWidget:
+        """Create model configuration page - Step 3"""
+        widget = QWidget()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_content = QWidget()
+        scroll.setWidget(scroll_content)
+        layout = QVBoxLayout(scroll_content)
+        
+        # Header
+        header_label = QLabel("<h2 style='color: #2196F3;'>🔧 Passo 3: Configure a Arquitetura do Modelo</h2>")
+        header_label.setWordWrap(True)
+        layout.addWidget(header_label)
+        
+        # Model Architecture
+        form_group = QGroupBox("Arquitetura do Modelo")
         form_layout = QFormLayout()
         
         # Model parameters
         self.n_layer_spin = QSpinBox()
         self.n_layer_spin.setRange(1, 12)
         self.n_layer_spin.setValue(2)
-        self.n_layer_spin.setToolTip("Number of transformer layers")
+        self.n_layer_spin.setToolTip("Número de camadas do transformador")
+        self.n_layer_spin.setStyleSheet("QSpinBox { font-size: 13px; padding: 3px; }")
         
         self.n_embd_spin = QSpinBox()
         self.n_embd_spin.setRange(16, 512)
         self.n_embd_spin.setSingleStep(16)
         self.n_embd_spin.setValue(32)
-        self.n_embd_spin.setToolTip("Embedding dimension")
+        self.n_embd_spin.setToolTip("Dimensão do embedding")
+        self.n_embd_spin.setStyleSheet("QSpinBox { font-size: 13px; padding: 3px; }")
         
         self.block_size_spin = QSpinBox()
         self.block_size_spin.setRange(16, 512)
         self.block_size_spin.setSingleStep(16)
         self.block_size_spin.setValue(32)
-        self.block_size_spin.setToolTip("Maximum context length")
+        self.block_size_spin.setToolTip("Tamanho máximo do contexto")
+        self.block_size_spin.setStyleSheet("QSpinBox { font-size: 13px; padding: 3px; }")
         
         self.n_head_spin = QSpinBox()
         self.n_head_spin.setRange(1, 16)
         self.n_head_spin.setValue(4)
-        self.n_head_spin.setToolTip("Number of attention heads")
+        self.n_head_spin.setToolTip("Número de cabeças de atenção")
+        self.n_head_spin.setStyleSheet("QSpinBox { font-size: 13px; padding: 3px; }")
         
         self.vocab_size_spin = QSpinBox()
         self.vocab_size_spin.setRange(64, 1024)
         self.vocab_size_spin.setValue(256)
-        self.vocab_size_spin.setToolTip("Vocabulary size")
+        self.vocab_size_spin.setToolTip("Tamanho do vocabulário")
+        self.vocab_size_spin.setStyleSheet("QSpinBox { font-size: 13px; padding: 3px; }")
         
-        form_layout.addRow("Layers:", self.n_layer_spin)
-        form_layout.addRow("Embedding Dim:", self.n_embd_spin)
-        form_layout.addRow("Block Size:", self.block_size_spin)
-        form_layout.addRow("Attention Heads:", self.n_head_spin)
-        form_layout.addRow("Vocab Size:", self.vocab_size_spin)
+        form_layout.addRow("Camadas:", self.n_layer_spin)
+        form_layout.addRow("Dimensão Embedding:", self.n_embd_spin)
+        form_layout.addRow("Tamanho Contexto:", self.block_size_spin)
+        form_layout.addRow("Cabeças Atenção:", self.n_head_spin)
+        form_layout.addRow("Tamanho Vocabulário:", self.vocab_size_spin)
         
         form_group.setLayout(form_layout)
         layout.addWidget(form_group)
         
         # Model info
         self.model_info_label = QLabel()
-        self.model_info_label.setStyleSheet("QLabel { font-weight: bold; color: #2196F3; }")
+        self.model_info_label.setStyleSheet("QLabel { font-weight: bold; color: #2196F3; font-size: 14px; padding: 10px; background-color: #E8F5E9; border-radius: 5px; }")
+        self.model_info_label.setWordWrap(True)
         layout.addWidget(self.model_info_label)
         
         # Buttons
         btn_layout = QHBoxLayout()
         
-        self.init_model_btn = QPushButton("🚀 Initialize Model")
+        self.init_model_btn = QPushButton("🚀 Inicializar Modelo")
         self.init_model_btn.clicked.connect(self._initialize_model)
+        self.init_model_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                border-radius: 5px;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 10px;
+            }
+            QPushButton:hover { background-color: #1976D2; }
+        """)
         btn_layout.addWidget(self.init_model_btn)
         
-        self.save_model_btn = QPushButton("💾 Save Model")
+        self.save_model_btn = QPushButton("💾 Salvar Modelo")
         self.save_model_btn.clicked.connect(self._save_model)
         self.save_model_btn.setEnabled(False)
+        self.save_model_btn.setStyleSheet("QPushButton { background-color: #4CAF50; color: white; border-radius: 5px; font-size: 13px; font-weight: bold; padding: 8px; }")
         btn_layout.addWidget(self.save_model_btn)
         
-        self.load_model_btn = QPushButton("📂 Load Model")
+        self.load_model_btn = QPushButton("📂 Carregar Modelo")
         self.load_model_btn.clicked.connect(self._load_model)
+        self.load_model_btn.setStyleSheet("QPushButton { background-color: #FF9800; color: white; border-radius: 5px; font-size: 13px; font-weight: bold; padding: 8px; }")
         btn_layout.addWidget(self.load_model_btn)
         
         layout.addLayout(btn_layout)
@@ -471,7 +708,15 @@ class MainWindow(QMainWindow):
         
         self._on_usecase_changed(0)
         self._update_model_info()
-        return widget
+        
+        main_widget = QWidget()
+        main_layout = QVBoxLayout(main_widget)
+        main_layout.addWidget(scroll)
+        return main_widget
+    
+    def _create_model_tab(self) -> QWidget:
+        """Legacy method - redirects to model page"""
+        return self._create_model_page()
     
     def _on_usecase_changed(self, index):
         """Handle use case selection change"""
@@ -919,6 +1164,7 @@ class MainWindow(QMainWindow):
             
             # Create model with selected use case
             self.model = GPTModel(config, use_case=self.selected_use_case)
+            self.tokenizer = Tokenizer(256)  # Initialize tokenizer
             self.save_model_btn.setEnabled(True)
             
             self.status_bar.showMessage(
@@ -932,6 +1178,9 @@ class MainWindow(QMainWindow):
                 f"Use Case: {self.selected_use_case.mode}\n"
                 f"Ready for training."
             )
+            
+            # Update navigation to enable Next button
+            self._update_navigation_buttons()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to initialize model: {e}")
     
@@ -1033,6 +1282,9 @@ class MainWindow(QMainWindow):
             self.dataset_preview.setText(preview_text)
             
             self.status_bar.showMessage(f"Dataset loaded: {len(docs)} documents")
+            
+            # Update navigation to enable Next button
+            self._update_navigation_buttons()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to load dataset: {e}")
     
@@ -1196,6 +1448,11 @@ class MainWindow(QMainWindow):
             f"Model automatically saved!"
         )
         self._refresh_models_list()
+        
+        # Auto-navigate to results page
+        self.wizard_stack.setCurrentIndex(7)  # Results page
+        self._update_navigation_buttons()
+        self._update_progress_indicator(7)
     
     def _on_training_error(self, error: str):
         """Handle training error"""
@@ -1542,3 +1799,80 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    # Wizard navigation methods
+    def _go_next(self):
+        """Navigate to next wizard page"""
+        current = self.wizard_stack.currentIndex()
+        if current < len(self.wizard_pages) - 1:
+            self.wizard_stack.setCurrentIndex(current + 1)
+            self._update_navigation_buttons()
+            self._update_progress_indicator(current + 1)
+    
+    def _go_back(self):
+        """Navigate to previous wizard page"""
+        current = self.wizard_stack.currentIndex()
+        if current > 0:
+            self.wizard_stack.setCurrentIndex(current - 1)
+            self._update_navigation_buttons()
+            self._update_progress_indicator(current - 1)
+    
+    def _update_navigation_buttons(self):
+        """Update navigation button states based on current page"""
+        current = self.wizard_stack.currentIndex()
+        total = len(self.wizard_pages) - 1
+        
+        # Back button
+        self.btn_back.setEnabled(current > 0)
+        
+        # Next button - hide on last page
+        if current == total:
+            self.btn_next.hide()
+        else:
+            self.btn_next.show()
+            # Disable next if on dataset page and no dataset loaded
+            if current == 4:  # Dataset page
+                has_dataset = hasattr(self, 'dataset_manager') and len(self.dataset_manager.documents) > 0
+                self.btn_next.setEnabled(has_dataset)
+            # Disable next if on model page and model not initialized
+            elif current == 3:  # Model page
+                has_model = self.model is not None
+                self.btn_next.setEnabled(has_model)
+            else:
+                self.btn_next.setEnabled(True)
+        
+        # Start button - show only on training page
+        if current == 5:  # Training page
+            self.btn_start.show()
+            self.btn_stop.hide()
+        else:
+            self.btn_start.hide()
+            self.btn_stop.hide()
+        
+        # Update status bar message
+        messages = [
+            "Bem-vindo! Clique em 'Avançar' para começar.",
+            "Selecione a tecnologia de treinamento (CPU ou GPU).",
+            "Defina o propósito do seu modelo.",
+            "Configure a arquitetura do modelo e inicialize.",
+            "Carregue ou crie um dataset para treinamento.",
+            "Ajuste os parâmetros e inicie o treinamento.",
+            "Teste seu modelo gerando texto.",
+            "Veja os resultados e métricas do treinamento.",
+            "Gerencie seus modelos salvos."
+        ]
+        if current < len(messages):
+            self.status_bar.showMessage(messages[current])
+    
+    def _update_progress_indicator(self, current_index):
+        """Update the progress indicator labels"""
+        for i, lbl in enumerate(self.progress_indicator):
+            if i < current_index:
+                lbl.setStyleSheet("QLabel { color: #4CAF50; font-size: 12px; font-weight: bold; }")
+                lbl.setText(f"✓ {lbl.text().split('. ')[1]}")
+            elif i == current_index:
+                lbl.setStyleSheet("QLabel { color: #2196F3; font-size: 13px; font-weight: bold; }")
+                lbl.setText(f"➤ {lbl.text().split('. ')[1]}")
+            else:
+                lbl.setStyleSheet("QLabel { color: #9E9E9E; font-size: 11px; }")
+                lbl.setText(f"{i+1}. {lbl.text().split('. ')[1] if '. ' in lbl.text() else lbl.text()}")
