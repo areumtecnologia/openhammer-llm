@@ -23,31 +23,24 @@ if ($createVenv -eq "y") {
     python -m venv venv
     Write-Host "✓ Virtual environment created" -ForegroundColor Green
     Write-Host "  To activate later: .\venv\Scripts\Activate.ps1" -ForegroundColor Gray
+    
+    # Activate venv for subsequent commands
+    Write-Host "  Activating virtual environment..." -ForegroundColor Gray
+    & ".\venv\Scripts\Activate.ps1"
 }
 
-# Install core dependencies
+# Install dependencies from requirements.txt
 Write-Host ""
-Write-Host "📦 Installing core dependencies..." -ForegroundColor Yellow
+Write-Host "📦 Installing dependencies from requirements.txt..." -ForegroundColor Yellow
 python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 
-# Always install psutil for hardware detection
-Write-Host "Installing psutil..." -ForegroundColor Gray
-python -m pip install psutil
-
-# Ask about GUI
+# Ask about PyTorch with CUDA support
 Write-Host ""
-$installGui = Read-Host "Install PySide6 for GUI? (y/n)"
-if ($installGui -eq "y") {
-    Write-Host "📦 Installing PySide6..." -ForegroundColor Yellow
-    python -m pip install PySide6
-}
-
-# Ask about Hugging Face datasets
-Write-Host ""
-$installDatasets = Read-Host "Install Hugging Face datasets library? (y/n)"
-if ($installDatasets -eq "y") {
-    Write-Host "📦 Installing datasets..." -ForegroundColor Yellow
-    python -m pip install datasets
+$installTorch = Read-Host "Install PyTorch with CUDA 12.4 support? (y/n)"
+if ($installTorch -eq "y") {
+    Write-Host "📦 Installing PyTorch with CUDA 12.4..." -ForegroundColor Yellow
+    python -m pip install torch --index-url https://download.pytorch.org/whl/cu124
 }
 
 # Create directories

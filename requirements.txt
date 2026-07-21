@@ -1,0 +1,14 @@
+# Core dependencies
+psutil>=5.9.0
+
+# GUI (optional)
+PySide6>=6.5.0
+
+# Datasets (optional)
+datasets>=2.14.0
+
+# PyTorch with CUDA 12.4 support (install separately if GPU needed)
+# torch -- install with: pip install torch --index-url https://download.pytorch.org/whl/cu124
+
+# NumPy compatibility fix (required for PySide6 and other compiled modules)
+numpy<2.0
