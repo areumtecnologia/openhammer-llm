@@ -330,15 +330,26 @@ class MainWindow(QMainWindow):
     def _update_progress_indicator(self, current_index):
         """Update the progress indicator labels"""
         for i, lbl in enumerate(self.progress_indicator):
+            text = lbl.text()
+            # Extract the label text after the number prefix if it exists
+            if '. ' in text:
+                label_text = text.split('. ', 1)[1]
+            elif text.startswith('✓ '):
+                label_text = text[2:]
+            elif text.startswith('➤ '):
+                label_text = text[2:]
+            else:
+                label_text = text
+            
             if i < current_index:
                 lbl.setStyleSheet("QLabel { color: #4CAF50; font-size: 12px; font-weight: bold; }")
-                lbl.setText(f"✓ {lbl.text().split('. ')[1]}")
+                lbl.setText(f"✓ {label_text}")
             elif i == current_index:
                 lbl.setStyleSheet("QLabel { color: #2196F3; font-size: 13px; font-weight: bold; }")
-                lbl.setText(f"➤ {lbl.text().split('. ')[1]}")
+                lbl.setText(f"➤ {label_text}")
             else:
                 lbl.setStyleSheet("QLabel { color: #9E9E9E; font-size: 11px; }")
-                lbl.setText(f"{i+1}. {lbl.text().split('. ')[1] if '. ' in lbl.text() else lbl.text()}")
+                lbl.setText(f"{i+1}. {label_text}")
     
     def _create_welcome_page(self) -> QWidget:
         """Create welcome page - Step 0"""
@@ -816,62 +827,168 @@ class MainWindow(QMainWindow):
             self.n_layer_spin.setValue(3)  # Slightly deeper for reasoning
     
     def _create_dataset_tab(self) -> QWidget:
-        """Create dataset management tab"""
+        """Create dataset management tab - Página 4 do Wizard"""
         widget = QWidget()
-        layout = QVBoxLayout(widget)
-        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_content = QWidget()
+        scroll.setWidget(scroll_content)
+        layout = QVBoxLayout(scroll_content)
+
+        # Header
+        header_label = QLabel("<h2 style='color: #2196F3;'>📊 Passo 4: Carregue seu Dataset</h2>")
+        header_label.setWordWrap(True)
+        layout.addWidget(header_label)
+
+        # Info box
+        info_label = QLabel("""
+        <p style='font-size: 15px;'>O dataset contém os dados que seu modelo usará para aprender.</p>
+        <ul style='font-size: 14px; line-height: 1.6;'>
+            <li><b>Datasets de Exemplo:</b> Prontos para usar, ideais para testes</li>
+            <li><b>Arquivo Local:</b> Use seus próprios dados (.txt, .json)</li>
+            <li><b>HuggingFace Hub:</b> Milhares de datasets públicos</li>
+        </ul>
+        """)
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("QLabel { padding: 10px; background-color: #E3F2FD; border-radius: 5px; color: #0D47A1; }")
+        layout.addWidget(info_label)
+
         # Dataset source
-        source_group = QGroupBox("Dataset Source")
+        source_group = QGroupBox("📁 Fonte do Dataset")
         source_layout = QFormLayout()
-        
+
         self.dataset_source_combo = QComboBox()
         self.dataset_source_combo.addItems([
-            "Sample Dataset (Names)",
-            "Sample Dataset (Code)",
-            "Local File",
-            "Hugging Face Hub",
-            "URL Download"
+            "Dataset de Exemplo (Nomes)",
+            "Dataset de Exemplo (Código)",
+            "Arquivo Local",
+            "HuggingFace Hub",
+            "URL para Download"
         ])
         self.dataset_source_combo.currentTextChanged.connect(self._on_dataset_source_changed)
-        
+        self.dataset_source_combo.setStyleSheet("""
+            QComboBox {
+                padding: 8px;
+                font-size: 14px;
+                border: 2px solid #2196F3;
+                border-radius: 5px;
+            }
+        """)
+
         self.dataset_path_edit = QLineEdit()
-        self.dataset_path_edit.setPlaceholderText("Path or URL...")
-        
-        browse_btn = QPushButton("Browse...")
+        self.dataset_path_edit.setPlaceholderText("Caminho ou URL...")
+        self.dataset_path_edit.setStyleSheet("""
+            QLineEdit {
+                padding: 8px;
+                font-size: 14px;
+                border: 2px solid #BDBDBD;
+                border-radius: 5px;
+            }
+            QLineEdit:focus {
+                border: 2px solid #2196F3;
+            }
+        """)
+
+        browse_btn = QPushButton("📂 Procurar...")
         browse_btn.clicked.connect(self._browse_dataset)
-        
+        browse_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF9800;
+                color: white;
+                padding: 8px 15px;
+                font-size: 13px;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #F57C00; }
+        """)
+
         path_layout = QHBoxLayout()
         path_layout.addWidget(self.dataset_path_edit)
         path_layout.addWidget(browse_btn)
-        
-        source_layout.addRow("Source:", self.dataset_source_combo)
-        source_layout.addRow("Path/URL:", path_layout)
-        
+
+        source_layout.addRow("Fonte:", self.dataset_source_combo)
+        source_layout.addRow("Caminho/URL:", path_layout)
+
         source_group.setLayout(source_layout)
         layout.addWidget(source_group)
-        
+
         # Dataset info
-        self.dataset_info_label = QLabel("No dataset loaded")
+        self.dataset_info_label = QLabel("❌ Nenhum dataset carregado")
+        self.dataset_info_label.setStyleSheet("QLabel { font-size: 14px; color: #F44336; font-weight: bold; padding: 10px; }")
         layout.addWidget(self.dataset_info_label)
-        
+
         # Preview
-        preview_group = QGroupBox("Dataset Preview")
+        preview_group = QGroupBox("👁️ Pré-visualização do Dataset")
         preview_layout = QVBoxLayout()
         self.dataset_preview = QTextEdit()
         self.dataset_preview.setReadOnly(True)
         self.dataset_preview.setMaximumHeight(200)
+        self.dataset_preview.setStyleSheet("""
+            QTextEdit {
+                background-color: #FAFAFA;
+                border: 2px solid #E0E0E0;
+                border-radius: 5px;
+                padding: 10px;
+                font-family: monospace;
+                font-size: 13px;
+            }
+        """)
         preview_layout.addWidget(self.dataset_preview)
         preview_group.setLayout(preview_layout)
         layout.addWidget(preview_group)
-        
+
+        # Progress for HuggingFace downloads
+        self.hf_progress_label = QLabel("")
+        self.hf_progress_label.setStyleSheet("QLabel { color: #2196F3; font-size: 13px; font-weight: bold; }")
+        self.hf_progress_label.setWordWrap(True)
+        layout.addWidget(self.hf_progress_label)
+
+        self.hf_progress_bar = QProgressBar()
+        self.hf_progress_bar.setRange(0, 100)
+        self.hf_progress_bar.setValue(0)
+        self.hf_progress_bar.hide()
+        self.hf_progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 2px solid #BDBDBD;
+                border-radius: 5px;
+                text-align: center;
+                font-weight: bold;
+            }
+            QProgressBar::chunk {
+                background-color: #2196F3;
+            }
+        """)
+        layout.addWidget(self.hf_progress_bar)
+
         # Load button
-        self.load_dataset_btn = QPushButton("📥 Load Dataset")
+        self.load_dataset_btn = QPushButton("📥 Carregar Dataset")
         self.load_dataset_btn.clicked.connect(self._load_dataset)
+        self.load_dataset_btn.setMinimumSize(200, 45)
+        self.load_dataset_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                padding: 12px 25px;
+                font-size: 15px;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #388E3C; }
+            QPushButton:disabled {
+                background-color: #BDBDBD;
+                color: #757575;
+            }
+        """)
         layout.addWidget(self.load_dataset_btn)
-        
+
         layout.addStretch()
-        return widget
-    
+        
+        main_widget = QWidget()
+        main_layout = QVBoxLayout(main_widget)
+        main_layout.addWidget(scroll)
+        return main_widget
+
     def _create_training_tab(self) -> QWidget:
         """Create training configuration tab"""
         widget = QWidget()
