@@ -1,6 +1,19 @@
 """
 Core module for LLM Desktop App - Pure Python implementation
-Based on @karpathy's minimal GPT with enterprise extensions
+Essência algorítmica para criação de Modelos de Linguagem.
+
+Este módulo fornece a base para treinar modelos desde zero (estilo 'micro-llm' puro em Python/Numpy)
+até configurações avançadas com aceleradores GPU para casos de uso complexos:
+- Chat e conversação
+- Function Calling e ferramentas
+- Agentes autônomos
+- Completion de código e texto estruturado
+
+Princípios:
+1. Transparência: O algoritmo de treinamento (Autograd, Adam, Attention) é explícito
+2. Escalabilidade: Comece simples em CPU, escale para GPU quando necessário
+3. Versatilidade: Suporte a múltiplos casos de uso (Chat, Tools, Agents)
+4. Minimalismo: Cada linha de código tem propósito educacional
 """
 
 import os
@@ -73,6 +86,59 @@ class TrainingConfig:
     @classmethod
     def from_dict(cls, data: dict) -> 'TrainingConfig':
         return cls(**data)
+
+
+@dataclass
+class ModelUseCase:
+    """Configuration for model use case and capabilities"""
+    mode: str = "completion"  # completion, chat, function_calling, agent
+    supports_tools: bool = False
+    supports_json_output: bool = False
+    system_prompt: str = ""
+    tool_definitions: List[Dict] = None
+    
+    def __post_init__(self):
+        if self.tool_definitions is None:
+            self.tool_definitions = []
+    
+    @property
+    def description(self) -> str:
+        descriptions = {
+            "completion": "Text completion and generation",
+            "chat": "Conversational AI with context",
+            "function_calling": "Tool/API integration",
+            "agent": "Autonomous task execution"
+        }
+        return descriptions.get(self.mode, "Custom mode")
+    
+    @classmethod
+    def create_chat_model(cls) -> 'ModelUseCase':
+        """Create configuration for chat/conversation"""
+        return cls(
+            mode="chat",
+            system_prompt="You are a helpful assistant."
+        )
+    
+    @classmethod
+    def create_function_calling_model(cls, tools: List[Dict] = None) -> 'ModelUseCase':
+        """Create configuration for function calling"""
+        return cls(
+            mode="function_calling",
+            supports_tools=True,
+            supports_json_output=True,
+            tool_definitions=tools or []
+        )
+    
+    @classmethod
+    def create_agent_model(cls, tools: List[Dict] = None) -> 'ModelUseCase':
+        """Create configuration for autonomous agents"""
+        return cls(
+            mode="agent",
+            supports_tools=True,
+            supports_json_output=True,
+            system_prompt="You are an autonomous agent. Think step by step.",
+            tool_definitions=tools or []
+        )
 
 
 @dataclass
@@ -332,13 +398,15 @@ class Tokenizer:
 
 
 class GPTModel:
-    """Minimal GPT model implementation"""
+    """Minimal GPT model implementation with multi-use case support"""
     
-    def __init__(self, config: ModelConfig):
+    def __init__(self, config: ModelConfig, use_case: ModelUseCase = None):
         self.config = config
+        self.use_case = use_case or ModelUseCase()
         self.state_dict = self._initialize_weights()
         self.keys_cache = None
         self.values_cache = None
+        self.conversation_history = []  # For chat mode
     
     def _initialize_weights(self) -> Dict[str, List[List[Value]]]:
         """Initialize all model parameters"""
@@ -428,10 +496,23 @@ class GPTModel:
         return logits
     
     def generate(self, tokenizer: Tokenizer, max_tokens: int = 50, 
-                 temperature: float = 0.5) -> str:
-        """Generate text autoregressively"""
+                 temperature: float = 0.5, prompt: str = None) -> str:
+        """Generate text autoregressively with use case support"""
         keys = [[] for _ in range(self.config.n_layer)]
         values = [[] for _ in range(self.config.n_layer)]
+        
+        # Handle different use cases
+        if self.use_case.mode == "chat" and prompt:
+            # Format as conversation turn
+            formatted_prompt = f"{self.use_case.system_prompt}\n\nUser: {prompt}\nAssistant:"
+        elif self.use_case.mode == "function_calling" and prompt:
+            # Format for JSON output
+            formatted_prompt = f"{self.use_case.system_prompt}\n\nQuery: {prompt}\nResponse (JSON):"
+        elif self.use_case.mode == "agent" and prompt:
+            # Format for agent reasoning
+            formatted_prompt = f"{self.use_case.system_prompt}\n\nTask: {prompt}\nThoughts:"
+        else:
+            formatted_prompt = prompt or ""
         
         token_id = tokenizer.BOS
         generated = []
@@ -460,6 +541,54 @@ class GPTModel:
             generated.append(token_id)
         
         return tokenizer.decode(generated)
+    
+    def chat(self, tokenizer: Tokenizer, user_message: str, 
+             max_tokens: int = 100, temperature: float = 0.7) -> str:
+        """Chat mode with conversation history"""
+        if self.use_case.mode != "chat":
+            # Switch to chat mode
+            self.use_case = ModelUseCase.create_chat_model()
+        
+        # Build context from conversation history
+        context = "\n".join(self.conversation_history[-5:])  # Last 5 turns
+        full_prompt = f"{context}\nUser: {user_message}\nAssistant:" if context else f"User: {user_message}\nAssistant:"
+        
+        response = self.generate(tokenizer, max_tokens=max_tokens, temperature=temperature, prompt=full_prompt)
+        
+        # Update conversation history
+        self.conversation_history.append(f"User: {user_message}")
+        self.conversation_history.append(f"Assistant: {response}")
+        
+        return response
+    
+    def call_function(self, tokenizer: Tokenizer, query: str,
+                      max_tokens: int = 200, temperature: float = 0.3) -> Dict:
+        """Function calling mode - returns structured JSON"""
+        if self.use_case.mode != "function_calling":
+            self.use_case = ModelUseCase.create_function_calling_model(self.use_case.tool_definitions)
+        
+        tools_context = ""
+        if self.use_case.tool_definitions:
+            tools_context = "Available tools:\n" + "\n".join(
+                f"- {t.get('name', 'tool')}: {t.get('description', '')}" 
+                for t in self.use_case.tool_definitions
+            ) + "\n\n"
+        
+        prompt = f"{tools_context}Query: {query}\nRespond with JSON:"
+        response_text = self.generate(tokenizer, max_tokens=max_tokens, temperature=temperature, prompt=prompt)
+        
+        # Try to parse as JSON
+        import json
+        try:
+            # Extract JSON from response
+            start = response_text.find('{')
+            end = response_text.rfind('}') + 1
+            if start >= 0 and end > start:
+                return json.loads(response_text[start:end])
+        except:
+            pass
+        
+        return {"response": response_text, "raw": True}
     
     def save(self, path: str):
         """Save model weights"""

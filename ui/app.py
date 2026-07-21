@@ -35,7 +35,8 @@ if not HAS_QT:
 
 from core.model import (
     ModelConfig, TrainingConfig, HardwareProfile, GPTModel, 
-    Trainer, Tokenizer, DatasetManager, ExperimentResult, TrainingStack
+    Trainer, Tokenizer, DatasetManager, ExperimentResult, TrainingStack,
+    ModelUseCase
 )
 
 
@@ -96,6 +97,7 @@ class MainWindow(QMainWindow):
         self.hardware_profile = HardwareProfile.detect_system()
         self.current_result = None
         self.selected_stack = TrainingStack(use_gpu=False, backend="cpu", dependencies=[])
+        self.selected_use_case = ModelUseCase(mode="completion")  # Default use case
         
         # Setup UI
         self._setup_ui()
@@ -113,7 +115,7 @@ class MainWindow(QMainWindow):
         tabs = QTabWidget()
         main_layout.addWidget(tabs)
         
-        # Create tabs
+        # Create tabs with wizard-style flow
         tabs.addTab(self._create_home_tab(), "🏠 Home")
         tabs.addTab(self._create_stack_tab(), "⚡ Training Stack")
         tabs.addTab(self._create_model_tab(), "🔧 Model Config")
@@ -309,10 +311,39 @@ class MainWindow(QMainWindow):
             self._on_stack_changed(self.stack_combo.currentIndex())
     
     def _create_model_tab(self) -> QWidget:
-        """Create model configuration tab"""
+        """Create model configuration tab with use case selection"""
         widget = QWidget()
         layout = QVBoxLayout(widget)
         
+        # Use Case Selection - Wizard Step 1
+        usecase_group = QGroupBox("Model Use Case (Purpose)")
+        usecase_layout = QVBoxLayout()
+        
+        usecase_info_label = QLabel("""
+        <h3>Select Model Purpose</h3>
+        <p>Choose how your model will be used:</p>
+        """)
+        usecase_info_label.setWordWrap(True)
+        usecase_layout.addWidget(usecase_info_label)
+        
+        self.usecase_combo = QComboBox()
+        self.usecase_combo.addItem("📝 Text Completion - Generate text continuations", "completion")
+        self.usecase_combo.addItem("💬 Chat/Conversation - Interactive dialogue", "chat")
+        self.usecase_combo.addItem("🔧 Function Calling - Tool/API integration", "function_calling")
+        self.usecase_combo.addItem("🤖 Agent - Autonomous task execution", "agent")
+        self.usecase_combo.currentIndexChanged.connect(self._on_usecase_changed)
+        usecase_layout.addWidget(self.usecase_combo)
+        
+        # Use case details
+        self.usecase_details_label = QLabel()
+        self.usecase_details_label.setWordWrap(True)
+        self.usecase_details_label.setStyleSheet("QLabel { color: #2196F3; font-style: italic; }")
+        usecase_layout.addWidget(self.usecase_details_label)
+        
+        usecase_group.setLayout(usecase_layout)
+        layout.addWidget(usecase_group)
+        
+        # Model Architecture - Wizard Step 2
         form_group = QGroupBox("Model Architecture")
         form_layout = QFormLayout()
         
@@ -382,8 +413,30 @@ class MainWindow(QMainWindow):
                      self.n_head_spin, self.vocab_size_spin]:
             spin.valueChanged.connect(self._update_model_info)
         
+        self._on_usecase_changed(0)
         self._update_model_info()
         return widget
+    
+    def _on_usecase_changed(self, index):
+        """Handle use case selection change"""
+        usecase_mode = self.usecase_combo.currentData()
+        self.selected_use_case = ModelUseCase(mode=usecase_mode)
+        
+        descriptions = {
+            "completion": "Best for: Text generation, code completion, creative writing. Simple and fast.",
+            "chat": "Best for: Conversational AI, customer support, tutoring. Maintains conversation history.",
+            "function_calling": "Best for: API integration, tool usage, structured output (JSON). Returns function calls.",
+            "agent": "Best for: Autonomous tasks, multi-step reasoning, planning. Combines chat + tools."
+        }
+        
+        self.usecase_details_label.setText(descriptions.get(usecase_mode, ""))
+        
+        # Adjust default architecture based on use case
+        if usecase_mode == "chat":
+            self.block_size_spin.setValue(128)  # Longer context for conversations
+        elif usecase_mode in ["function_calling", "agent"]:
+            self.block_size_spin.setValue(256)  # Even longer for structured output
+            self.n_layer_spin.setValue(3)  # Slightly deeper for reasoning
     
     def _create_dataset_tab(self) -> QWidget:
         """Create dataset management tab"""
@@ -712,7 +765,7 @@ class MainWindow(QMainWindow):
             self.model_info_label.setStyleSheet("color: red;")
     
     def _initialize_model(self):
-        """Initialize model with current config"""
+        """Initialize model with current config and use case"""
         try:
             config = ModelConfig(
                 n_layer=self.n_layer_spin.value(),
@@ -722,17 +775,19 @@ class MainWindow(QMainWindow):
                 vocab_size=self.vocab_size_spin.value()
             )
             
-            self.model = GPTModel(config)
+            # Create model with selected use case
+            self.model = GPTModel(config, use_case=self.selected_use_case)
             self.save_model_btn.setEnabled(True)
             
             self.status_bar.showMessage(
-                f"Model initialized with {config.num_params:,} parameters"
+                f"Model initialized: {config.num_params:,} params | Mode: {self.selected_use_case.mode}"
             )
             
             QMessageBox.information(
                 self, "Success",
                 f"Model initialized successfully!\n"
                 f"Parameters: {config.num_params:,}\n"
+                f"Use Case: {self.selected_use_case.mode}\n"
                 f"Ready for training."
             )
         except Exception as e:
