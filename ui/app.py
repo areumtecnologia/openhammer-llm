@@ -268,8 +268,20 @@ class MainWindow(QMainWindow):
             
             if stack.use_gpu:
                 deps = ", ".join(stack.dependencies)
-                self.dependencies_label.setText(f"⚠ Requires: {deps}")
-                self.install_deps_btn.setEnabled(True)
+                # Check if dependencies are already installed
+                missing_deps = []
+                for dep in stack.dependencies:
+                    try:
+                        __import__(dep)
+                    except ImportError:
+                        missing_deps.append(dep)
+                
+                if missing_deps:
+                    self.dependencies_label.setText(f"⚠ Requires: {', '.join(missing_deps)}")
+                    self.install_deps_btn.setEnabled(True)
+                else:
+                    self.dependencies_label.setText("✓ All dependencies installed")
+                    self.install_deps_btn.setEnabled(False)
             else:
                 self.dependencies_label.setText("✓ No additional dependencies required")
                 self.install_deps_btn.setEnabled(False)
@@ -277,9 +289,19 @@ class MainWindow(QMainWindow):
             # Update status
             self.status_stack_label.setText("GPU" if stack.use_gpu else "CPU")
             self.status_backend_label.setText(stack.backend)
-            self.status_ready_label.setText("✓ Ready" if not stack.use_gpu else "⚠ Check dependencies")
+            
+            # Check if ready (no missing dependencies)
+            is_ready = not stack.use_gpu
+            if stack.use_gpu:
+                try:
+                    import torch
+                    is_ready = True
+                except ImportError:
+                    is_ready = False
+            
+            self.status_ready_label.setText("✓ Ready" if is_ready else "⚠ Check dependencies")
             self.status_ready_label.setStyleSheet(
-                "QLabel { color: green; font-weight: bold; }" if not stack.use_gpu 
+                "QLabel { color: green; font-weight: bold; }" if is_ready 
                 else "QLabel { color: orange; font-weight: bold; }"
             )
     
