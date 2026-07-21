@@ -535,7 +535,17 @@ class GPTModel:
     
     def generate(self, tokenizer: Tokenizer, max_tokens: int = 50, 
                  temperature: float = 0.5, prompt: str = None) -> str:
-        """Generate text autoregressively with use case support"""
+        """Generate text autoregressively with use case support
+        
+        Args:
+            tokenizer: Tokenizer instance
+            max_tokens: Maximum number of tokens to generate (default: 50)
+            temperature: Sampling temperature for randomness (default: 0.5)
+            prompt: Optional prompt string to continue from
+            
+        Returns:
+            Generated text string
+        """
         keys = [[] for _ in range(self.config.n_layer)]
         values = [[] for _ in range(self.config.n_layer)]
         
