@@ -76,6 +76,47 @@ class TrainingConfig:
 
 
 @dataclass
+class TrainingStack:
+    """Training stack configuration"""
+    use_gpu: bool = False
+    backend: str = "cpu"  # cpu, cuda, mps, rocm
+    dependencies: List[str] = None
+    
+    def __post_init__(self):
+        if self.dependencies is None:
+            self.dependencies = [] if not self.use_gpu else ["torch", "numpy"]
+    
+    @property
+    def description(self) -> str:
+        if self.use_gpu:
+            return f"GPU Accelerated ({self.backend}) - Requires: {', '.join(self.dependencies)}"
+        return "CPU Only - No additional dependencies"
+    
+    @classmethod
+    def detect_available(cls) -> List['TrainingStack']:
+        """Detect available training stacks on current system"""
+        stacks = [cls(use_gpu=False, backend="cpu", dependencies=[])]
+        
+        # Check for CUDA
+        try:
+            import torch
+            if torch.cuda.is_available():
+                stacks.append(cls(use_gpu=True, backend="cuda", dependencies=["torch"]))
+        except ImportError:
+            pass
+        
+        # Check for MPS (Apple Silicon)
+        try:
+            import torch
+            if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                stacks.append(cls(use_gpu=True, backend="mps", dependencies=["torch"]))
+        except ImportError:
+            pass
+        
+        return stacks
+
+
+@dataclass
 class HardwareProfile:
     """Hardware capability profile"""
     ram_gb: float = 8.0
@@ -85,6 +126,7 @@ class HardwareProfile:
     gpu_type: str = "none"  # none, cuda, rocm, metal, vulkan
     supports_avx2: bool = True
     supports_avx512: bool = False
+    recommended_stack: str = "cpu"
     
     def recommend_quantization(self) -> str:
         """Recommend quantization level based on hardware"""
@@ -117,10 +159,11 @@ class HardwareProfile:
         ram_gb = psutil.virtual_memory().total / (1024**3)
         cpu_cores = psutil.cpu_count(logical=False) or 4
         
-        # Detect GPU (simplified)
+        # Detect GPU and recommend stack
         has_gpu = False
         gpu_type = "none"
         vram_gb = 0.0
+        recommended_stack = "cpu"
         
         try:
             import torch
@@ -128,6 +171,11 @@ class HardwareProfile:
                 has_gpu = True
                 gpu_type = "cuda"
                 vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+                recommended_stack = "cuda"
+            elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                has_gpu = True
+                gpu_type = "metal"
+                recommended_stack = "mps"
         except ImportError:
             pass
         
@@ -136,7 +184,8 @@ class HardwareProfile:
             vram_gb=round(vram_gb, 1),
             cpu_cores=cpu_cores,
             has_gpu=has_gpu,
-            gpu_type=gpu_type
+            gpu_type=gpu_type,
+            recommended_stack=recommended_stack
         )
 
 
