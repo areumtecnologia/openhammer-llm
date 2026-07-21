@@ -17,7 +17,7 @@ try:
         QDoubleSpinBox, QComboBox, QProgressBar, QGroupBox, QFormLayout,
         QFileDialog, QMessageBox, QSplitter, QScrollArea, QCheckBox,
         QListWidget, QListWidgetItem, QSlider, QStatusBar, QMenu,
-        QAction, QMenuBar, QDialog, QDialogButtonBox, QGridLayout
+        QMenuBar, QDialog, QDialogButtonBox, QGridLayout
     )
     from PySide6.QtCore import Qt, QThread, Signal, QTimer, QSize
     from PySide6.QtGui import QFont, QIcon, QAction
