@@ -1,11 +1,13 @@
 """
 Desktop GUI Application for LLM Training and Inference
 Built with PySide6 (Qt for Python)
+Wizard-style interface for beginner-friendly model creation
 """
 
 import sys
 import os
 from pathlib import Path
+from datetime import datetime
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -17,10 +19,11 @@ try:
         QDoubleSpinBox, QComboBox, QProgressBar, QGroupBox, QFormLayout,
         QFileDialog, QMessageBox, QSplitter, QScrollArea, QCheckBox,
         QListWidget, QListWidgetItem, QSlider, QStatusBar, QMenu,
-        QMenuBar, QDialog, QDialogButtonBox, QGridLayout
+        QMenuBar, QDialog, QDialogButtonBox, QGridLayout, QStackedWidget,
+        QWizard, QWizardPage, QRadioButton, QButtonGroup, QFrame
     )
-    from PySide6.QtCore import Qt, QThread, Signal, QTimer, QSize
-    from PySide6.QtGui import QFont, QIcon, QAction
+    from PySide6.QtCore import Qt, QThread, Signal, QTimer, QSize, QUrl
+    from PySide6.QtGui import QFont, QIcon, QAction, QDesktopServices
     HAS_QT = True
 except ImportError as e:
     HAS_QT = False
