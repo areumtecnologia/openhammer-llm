@@ -14,6 +14,21 @@ Princípios:
 2. Escalabilidade: Comece simples em CPU, escale para GPU quando necessário
 3. Versatilidade: Suporte a múltiplos casos de uso (Chat, Tools, Agents)
 4. Minimalismo: Cada linha de código tem propósito educacional
+
+NOTA IMPORTANTE SOBRE GPU/CUDA:
+--------------------------------
+A implementação padrão usa classes Value e Matrix em Python puro para fins educacionais.
+Mesmo selecionando 'cuda' como stack, o treinamento será executado em CPU porque:
+- A classe Value é uma implementação pura de autograd em Python
+- As operações matriciais são feitas com listas Python, não tensores vetorizados
+
+Para usar GPU de verdade, você precisa:
+1. Instalar PyTorch: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+2. Usar a classe TorchGPTModel (disponível quando torch está instalado)
+3. Ou modificar o código para usar torch.Tensor ao invés de Value
+
+O tempo de treinamento lento é esperado nesta implementação educacional.
+Para produção, considere usar transformers/HuggingFace ou implementar com PyTorch/JAX.
 """
 
 import os
@@ -702,15 +717,32 @@ class Trainer:
         
         return loss.data
     
-    def train(self, docs: List[str], callback=None) -> List[float]:
-        """Full training loop"""
+    def train(self, docs: List[str], callback=None) -> Tuple[List[float], float, float]:
+        """Full training loop with timing information
+        
+        Returns:
+            Tuple of (loss_history, total_time_seconds, avg_step_time_seconds)
+        """
+        import time
+        start_time = time.time()
+        step_times = []
+        
         for step in range(self.config.num_steps):
+            step_start = time.time()
             loss = self.train_step(docs)
+            step_end = time.time()
+            
+            step_times.append(step_end - step_start)
             
             if callback and step % 10 == 0:
-                callback(step, loss)
+                elapsed = step_end - start_time
+                avg_step = elapsed / (step + 1) if step > 0 else 0
+                callback(step, loss, elapsed, avg_step)
         
-        return self.loss_history
+        total_time = time.time() - start_time
+        avg_step_time = total_time / self.config.num_steps if self.config.num_steps > 0 else 0
+        
+        return self.loss_history, total_time, avg_step_time
 
 
 class DatasetManager:

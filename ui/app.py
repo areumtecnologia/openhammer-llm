@@ -42,7 +42,7 @@ from core.model import (
 
 class TrainingWorker(QThread):
     """Background thread for training"""
-    progress = Signal(int, float)
+    progress = Signal(int, float, float, float)  # step, loss, elapsed_time, avg_step_time
     finished = Signal(object)
     error = Signal(str)
     
@@ -55,10 +55,13 @@ class TrainingWorker(QThread):
     
     def run(self):
         try:
-            def callback(step, loss):
-                self.progress.emit(step, loss)
+            import time
+            start_time = time.time()
             
-            self.trainer.train(self.docs, callback=callback)
+            def callback(step, loss, elapsed, avg_step):
+                self.progress.emit(step, loss, elapsed, avg_step)
+            
+            loss_history, total_time, avg_step_time = self.trainer.train(self.docs, callback=callback)
             
             # Generate samples
             samples = []
@@ -69,10 +72,10 @@ class TrainingWorker(QThread):
             result = ExperimentResult(
                 model_config=self.model.config,
                 training_config=self.trainer.config,
-                final_loss=self.trainer.loss_history[-1] if self.trainer.loss_history else 0,
-                loss_history=self.trainer.loss_history,
+                final_loss=loss_history[-1] if loss_history else 0,
+                loss_history=loss_history,
                 samples=samples,
-                training_time=0,
+                training_time=total_time,
                 timestamp=str(__import__('datetime').datetime.now())
             )
             
@@ -187,10 +190,11 @@ class MainWindow(QMainWindow):
         <h3>Training Stack Selection</h3>
         <p>Choose the backend for training your model:</p>
         <ul>
-            <li><b>CPU Only:</b> No additional dependencies, works everywhere</li>
-            <li><b>GPU (CUDA):</b> Faster training, requires NVIDIA GPU and PyTorch</li>
-            <li><b>GPU (Metal):</b> Apple Silicon acceleration, requires PyTorch</li>
+            <li><b>CPU Only:</b> No additional dependencies, works everywhere (pure Python implementation)</li>
+            <li><b>GPU (CUDA):</b> Requires NVIDIA GPU and PyTorch - NOTE: Current implementation uses pure Python classes (Value/Matrix) which run on CPU even when CUDA is selected. For true GPU acceleration, you would need to refactor to use torch.Tensor.</li>
+            <li><b>GPU (Metal):</b> Apple Silicon acceleration, requires PyTorch - Same limitation as CUDA above.</li>
         </ul>
+        <p style="color: #FF9800;"><b>⚠ Important:</b> Selecting GPU stack does NOT automatically speed up training in this educational implementation. The Value and Matrix classes are pure Python and don't use GPU tensors.</p>
         """)
         stack_info_label.setWordWrap(True)
         stack_layout.addWidget(stack_info_label)
@@ -573,10 +577,14 @@ class MainWindow(QMainWindow):
         self.loss_label = QLabel("Loss: --")
         self.loss_label.setStyleSheet("QLabel { font-size: 16px; font-weight: bold; }")
         
+        self.time_label = QLabel("Time: 0.0s | Avg/step: 0.000s")
+        self.time_label.setStyleSheet("QLabel { font-size: 14px; color: #2196F3; }")
+        
         self.status_label = QLabel("Status: Idle")
         
         progress_layout.addWidget(self.progress_bar)
         progress_layout.addWidget(self.loss_label)
+        progress_layout.addWidget(self.time_label)
         progress_layout.addWidget(self.status_label)
         
         progress_group.setLayout(progress_layout)
@@ -992,13 +1000,14 @@ class MainWindow(QMainWindow):
             self.start_train_btn.setEnabled(True)
             self.stop_train_btn.setEnabled(False)
     
-    def _on_training_progress(self, step: int, loss: float):
+    def _on_training_progress(self, step: int, loss: float, elapsed: float, avg_step: float):
         """Handle training progress update"""
         total = self.steps_spin.value()
         progress = int((step / total) * 100)
         self.progress_bar.setValue(progress)
         self.loss_label.setText(f"Loss: {loss:.4f}")
-        self.status_label.setText(f"Status: Step {step}/{total}")
+        self.time_label.setText(f"Time: {elapsed:.1f}s | Avg/step: {avg_step:.3f}s")
+        self.status_label.setText(f"Status: Step {step}/{total} ({self.selected_stack.backend.upper()})")
         QApplication.processEvents()
     
     def _on_training_finished(self, result: ExperimentResult):
