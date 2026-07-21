@@ -38,6 +38,7 @@ from core.model import (
     Trainer, Tokenizer, DatasetManager, ExperimentResult, TrainingStack,
     ModelUseCase, TORCH_AVAILABLE, TorchGPTModel, TorchTrainer
 )
+from core.model_manager import ModelManager, QualityAssessor, ModelMetadata
 
 
 class TrainingWorker(QThread):
@@ -125,6 +126,7 @@ class MainWindow(QMainWindow):
         self.current_result = None
         self.selected_stack = TrainingStack(use_gpu=False, backend="cpu", dependencies=[])
         self.selected_use_case = ModelUseCase(mode="completion")  # Default use case
+        self.model_manager = ModelManager()  # Model lifecycle management
         
         # Setup UI
         self._setup_ui()
@@ -150,6 +152,7 @@ class MainWindow(QMainWindow):
         tabs.addTab(self._create_training_tab(), "🎯 Training")
         tabs.addTab(self._create_inference_tab(), "💬 Inference")
         tabs.addTab(self._create_results_tab(), "📈 Results")
+        tabs.addTab(self._create_models_tab(), "📦 Saved Models")
         
         # Status bar
         self.status_bar = QStatusBar()
@@ -745,6 +748,88 @@ class MainWindow(QMainWindow):
         layout.addStretch()
         return widget
     
+    def _create_models_tab(self) -> QWidget:
+        """Create saved models management tab"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        # Models list
+        list_group = QGroupBox("Saved Models")
+        list_layout = QVBoxLayout()
+        
+        self.models_list = QListWidget()
+        self.models_list.itemClicked.connect(self._on_model_selected)
+        list_layout.addWidget(self.models_list)
+        
+        # Refresh button
+        refresh_btn = QPushButton("🔄 Refresh List")
+        refresh_btn.clicked.connect(self._refresh_models_list)
+        list_layout.addWidget(refresh_btn)
+        
+        list_group.setLayout(list_layout)
+        layout.addWidget(list_group)
+        
+        # Model details and actions
+        details_group = QGroupBox("Model Details & Actions")
+        details_layout = QVBoxLayout()
+        
+        self.model_details = QTextEdit()
+        self.model_details.setReadOnly(True)
+        self.model_details.setMinimumHeight(150)
+        details_layout.addWidget(self.model_details)
+        
+        # Action buttons
+        btn_layout = QHBoxLayout()
+        
+        self.load_model_btn = QPushButton("📥 Load Model")
+        self.load_model_btn.clicked.connect(self._load_selected_model)
+        self.load_model_btn.setEnabled(False)
+        btn_layout.addWidget(self.load_model_btn)
+        
+        self.delete_model_btn = QPushButton("🗑️ Delete Model")
+        self.delete_model_btn.clicked.connect(self._delete_selected_model)
+        self.delete_model_btn.setEnabled(False)
+        btn_layout.addWidget(self.delete_model_btn)
+        
+        self.assess_model_btn = QPushButton("🔍 Assess Quality")
+        self.assess_model_btn.clicked.connect(self._assess_selected_model)
+        self.assess_model_btn.setEnabled(False)
+        btn_layout.addWidget(self.assess_model_btn)
+        
+        details_layout.addLayout(btn_layout)
+        details_group.setLayout(details_layout)
+        layout.addWidget(details_group)
+        
+        # Quality assessment results
+        quality_group = QGroupBox("Quality Assessment")
+        quality_layout = QVBoxLayout()
+        
+        self.quality_label = QLabel("No assessment performed yet")
+        self.quality_label.setStyleSheet("QLabel { font-size: 14px; }")
+        quality_layout.addWidget(self.quality_label)
+        
+        self.quality_progress = QProgressBar()
+        self.quality_progress.setRange(0, 100)
+        self.quality_progress.setValue(0)
+        quality_layout.addWidget(self.quality_progress)
+        
+        self.quality_recommendations = QTextEdit()
+        self.quality_recommendations.setReadOnly(True)
+        self.quality_recommendations.setMaximumHeight(100)
+        self.quality_recommendations.setPlaceholderText("Recommendations will appear here...")
+        quality_layout.addWidget(self.quality_recommendations)
+        
+        quality_group.setLayout(quality_layout)
+        layout.addWidget(quality_group)
+        
+        layout.addStretch()
+        
+        # Initialize models list
+        self._refresh_models_list()
+        self.selected_model_id = None
+        
+        return widget
+    
     def _setup_menu(self):
         """Setup menu bar"""
         menubar = self.menuBar()
@@ -1069,11 +1154,45 @@ class MainWindow(QMainWindow):
         self.current_result = result
         self._add_result_to_list(result)
         
+        # Auto-save model after training
+        try:
+            docs_source = self.dataset_source_combo.currentText()
+            if "Sample" in docs_source:
+                name = "names" if "Names" in docs_source else "code"
+                docs = self.dataset_manager.create_sample_dataset(name)
+            else:
+                path = self.dataset_path_edit.text()
+                docs = self.dataset_manager.load_local(path) if os.path.exists(path) else []
+            
+            model_id = self.model_manager.save_model(
+                model=self.model,
+                tokenizer=self.tokenizer,
+                model_config=result.model_config,
+                training_config=result.training_config,
+                final_loss=result.final_loss,
+                total_steps=result.training_config.num_steps,
+                use_case=self.selected_use_case,
+                docs=docs,
+                name=f"Model {datetime.now().strftime('%Y%m%d %H:%M')}",
+                description=f"Trained with loss {result.final_loss:.4f}"
+            )
+            
+            # Auto-assess quality
+            assessor = QualityAssessor(self.tokenizer, self.model)
+            quality_results = assessor.assess()
+            self.model_manager.update_quality_score(model_id, quality_results['overall_score'], quality_results)
+            
+            self.status_bar.showMessage(f"Model saved as {model_id} | Quality Score: {quality_results['overall_score']:.2f}")
+        except Exception as e:
+            self.status_bar.showMessage(f"Warning: Could not auto-save model: {e}")
+        
         QMessageBox.information(
             self, "Training Complete",
             f"Final Loss: {result.final_loss:.4f}\n"
-            f"Samples generated: {len(result.samples)}"
+            f"Samples generated: {len(result.samples)}\n"
+            f"Model automatically saved!"
         )
+        self._refresh_models_list()
     
     def _on_training_error(self, error: str):
         """Handle training error"""
@@ -1210,6 +1329,184 @@ class MainWindow(QMainWindow):
             <p>Based on @karpathy's minimal GPT implementation</p>
             """
         )
+    
+    def _refresh_models_list(self):
+        """Refresh the saved models list"""
+        self.models_list.clear()
+        models = self.model_manager.list_models(include_checkpoints=False)
+        
+        for model in models:
+            quality_indicator = ""
+            if model.quality_score > 0:
+                if model.quality_score >= 0.7:
+                    quality_indicator = "⭐⭐⭐"
+                elif model.quality_score >= 0.5:
+                    quality_indicator = "⭐⭐"
+                else:
+                    quality_indicator = "⭐"
+            
+            item_text = f"{quality_indicator} {model.name} (Loss: {model.final_loss:.4f})"
+            item = QListWidgetItem(item_text)
+            item.setData(Qt.UserRole, model.model_id)
+            self.models_list.addItem(item)
+    
+    def _on_model_selected(self, item: QListWidgetItem):
+        """Handle model selection"""
+        model_id = item.data(Qt.UserRole)
+        if model_id:
+            self.selected_model_id = model_id
+            metadata = self.model_manager.get_model_info(model_id)
+            
+            if metadata:
+                details = f"""
+                Model Details
+                =============
+                
+                Name: {metadata.name}
+                Created: {metadata.created_at}
+                Use Case: {metadata.use_case}
+                
+                Architecture:
+                - Layers: {metadata.model_config['n_layer']}
+                - Embedding: {metadata.model_config['n_embd']}
+                - Block Size: {metadata.model_config['block_size']}
+                - Heads: {metadata.model_config['n_head']}
+                
+                Training:
+                - Steps: {metadata.total_steps}
+                - Final Loss: {metadata.final_loss:.4f}
+                - Learning Rate: {metadata.training_config['learning_rate']}
+                
+                Quality Score: {metadata.quality_score:.2f}/1.00
+                """
+                self.model_details.setText(details)
+                
+                # Update quality display
+                if metadata.quality_score > 0:
+                    self.quality_progress.setValue(int(metadata.quality_score * 100))
+                    self.quality_label.setText(f"Quality Score: {metadata.quality_score:.2f}/1.00")
+                    
+                    if metadata.test_results and 'recommendations' in metadata.test_results:
+                        recs = metadata.test_results['recommendations']
+                        if recs:
+                            self.quality_recommendations.setText(
+                                "Recommendations:\n" + "\n".join(f"• {r}" for r in recs)
+                            )
+                else:
+                    self.quality_progress.setValue(0)
+                    self.quality_label.setText("No assessment performed yet")
+                    self.quality_recommendations.clear()
+                
+                # Enable action buttons
+                self.load_model_btn.setEnabled(True)
+                self.delete_model_btn.setEnabled(True)
+                self.assess_model_btn.setEnabled(True)
+    
+    def _load_selected_model(self):
+        """Load selected model for inference"""
+        if not self.selected_model_id:
+            return
+        
+        try:
+            model, tokenizer, model_config, training_config, use_case = \
+                self.model_manager.load_model(self.selected_model_id)
+            
+            self.model = model
+            self.tokenizer = tokenizer
+            self.selected_use_case = use_case
+            
+            self.status_bar.showMessage(f"Model loaded: {self.model_manager.get_model_info(self.selected_model_id).name}")
+            
+            QMessageBox.information(
+                self, "Model Loaded",
+                f"Successfully loaded model!\n\nYou can now use it for inference."
+            )
+            
+            # Switch to inference tab
+            tabs = self.findChild(QTabWidget)
+            if tabs:
+                for i in range(tabs.count()):
+                    if tabs.tabText(i) == "💬 Inference":
+                        tabs.setCurrentIndex(i)
+                        break
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to load model: {e}")
+    
+    def _delete_selected_model(self):
+        """Delete selected model"""
+        if not self.selected_model_id:
+            return
+        
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Warning)
+        msg.setWindowTitle("Delete Model")
+        msg.setText("Are you sure you want to delete this model?")
+        msg.setInformativeText("This action cannot be undone.")
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        
+        if msg.exec() == QMessageBox.Yes:
+            try:
+                self.model_manager.delete_model(self.selected_model_id)
+                self._refresh_models_list()
+                self.selected_model_id = None
+                self.model_details.clear()
+                self.load_model_btn.setEnabled(False)
+                self.delete_model_btn.setEnabled(False)
+                self.assess_model_btn.setEnabled(False)
+                
+                QMessageBox.information(self, "Success", "Model deleted successfully!")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to delete model: {e}")
+    
+    def _assess_selected_model(self):
+        """Run quality assessment on selected model"""
+        if not self.selected_model_id:
+            return
+        
+        try:
+            # Load model
+            model, tokenizer, _, _, _ = self.model_manager.load_model(self.selected_model_id)
+            
+            # Run assessment
+            assessor = QualityAssessor(tokenizer, model)
+            results = assessor.assess()
+            
+            # Update UI
+            self.quality_progress.setValue(int(results['overall_score'] * 100))
+            self.quality_label.setText(f"Quality Score: {results['overall_score']:.2f}/1.00")
+            
+            if results['recommendations']:
+                self.quality_recommendations.setText(
+                    "Recommendations:\n" + "\n".join(f"• {r}" for r in results['recommendations'])
+                )
+            
+            # Save results
+            self.model_manager.update_quality_score(
+                self.selected_model_id, 
+                results['overall_score'], 
+                results
+            )
+            
+            # Show test outputs
+            test_outputs = "\n\n".join(
+                f"Prompt: {p}\nOutput: {o}" 
+                for p, o in zip(assessor.test_prompts[:5], results['test_outputs'][:5])
+            )
+            
+            QMessageBox.information(
+                self, "Assessment Complete",
+                f"Overall Score: {results['overall_score']:.2f}/1.00\n\n"
+                f"Metrics:\n"
+                f"- Coherence: {results['coherence_score']:.2f}\n"
+                f"- Diversity: {results['diversity_score']:.2f}\n"
+                f"- Completion Rate: {results['completion_rate']:.0%}\n\n"
+                f"Test Outputs:\n{test_outputs}"
+            )
+            
+            # Refresh to update stored score
+            self._refresh_models_list()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Assessment failed: {e}")
 
 
 def main():
