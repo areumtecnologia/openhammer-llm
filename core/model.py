@@ -163,16 +163,24 @@ class TrainingStack:
         """Detect available training stacks on current system"""
         stacks = [cls(use_gpu=False, backend="cpu", dependencies=[])]
         
-        # Check for CUDA
+        # Check for PyTorch installation and CUDA support
         try:
             import torch
             if torch.cuda.is_available():
+                # GPU is accessible - full CUDA support
                 stacks.append(cls(use_gpu=True, backend="cuda", dependencies=["torch"]))
             else:
-                # CUDA installed but not available - likely missing NVIDIA Container Toolkit
-                print("[WARNING] PyTorch has CUDA support but no GPU detected.")
-                print("          If using Docker/Podman, run with: --gpus all")
+                # Torch installed with CUDA but GPU not accessible
+                # This happens in containers without --gpus all or missing NVIDIA Container Toolkit
+                print("[INFO] PyTorch with CUDA support is installed, but GPU is not accessible.")
+                print("       To enable GPU access:")
+                print("       - Docker: run with --gpus all")
+                print("       - Podman: run with --device nvidia.com/gpu=all")
+                print("       - Ensure NVIDIA Container Toolkit is installed")
+                # Still add the CUDA stack option so user knows torch is available
+                stacks.append(cls(use_gpu=True, backend="cuda", dependencies=["torch"]))
         except ImportError:
+            # Torch not installed - would need to install it first
             pass
         
         # Check for MPS (Apple Silicon)
