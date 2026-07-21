@@ -1,103 +1,23 @@
-```powershell
-# PowerShell profiles and modules
-Microsoft.PowerShell_profile.ps1
-Modules/
+```
+# Compiled and build artifacts
+*.pyc
+__pycache__/
 
-# Temporary and backup files
+# Dependencies
+.venv/
+venv/
+
+# Logs and temp files
+*.log
 *.tmp
-*.bak
 *.swp
 
-# Log files
-*.log
-
-# Environment variables
+# Environment
 .env
 .env.local
 *.env.*
 
-# OS generated files
-.DS_Store
-Thumbs.db
-ehthumbs.db
-Icon?
-.directory
-.Spotlight-V100
-.Trashes
-
-# Built application files
-*.exe
-*.msi
-*.msp
-*.com
-*.dll
-*.o
-*.obj
-*.out
-
-# Dependencies
-node_modules/
-vendor/
-
-# Build outputs
-dist/
-build/
-target/
-bin/
-obj/
-
-# Python specific
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-.venv/
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.git/
-*.sublime-workspace
-.pytest_cache/
-.mypy_cache/
-.hypothesis/
-
-# Editor related
+# Editors
 .vscode/
 .idea/
-*.swp
-*.swo
-
-# Compressed files
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
 ```

@@ -25,6 +25,7 @@ try:
 except ImportError:
     HAS_QT = False
     print("⚠ PySide6 not installed. Install with: pip install PySide6")
+    sys.exit(1)
 
 from core.model import (
     ModelConfig, TrainingConfig, HardwareProfile, GPTModel, 
