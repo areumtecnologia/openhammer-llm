@@ -159,11 +159,11 @@ class MainWindow(QMainWindow):
             self._create_stack_page(),         # Page 1: Stack
             self._create_usecase_page(),       # Page 2: Use Case
             self._create_model_page(),         # Page 3: Model Config
-            self._create_dataset_page(),       # Page 4: Dataset
-            self._create_training_page(),      # Page 5: Training
-            self._create_inference_page(),     # Page 6: Inference
-            self._create_results_page(),       # Page 7: Results
-            self._create_models_page(),        # Page 8: Saved Models
+            self._create_dataset_tab(),        # Page 4: Dataset (using tab method)
+            self._create_training_tab(),       # Page 5: Training (using tab method)
+            self._create_inference_tab(),      # Page 6: Inference (using tab method)
+            self._create_results_tab(),        # Page 7: Results (using tab method)
+            self._create_models_tab(),         # Page 8: Saved Models (using tab method)
         ]
         
         for page in self.wizard_pages:
@@ -263,6 +263,82 @@ class MainWindow(QMainWindow):
         
         # Initialize navigation state
         self._update_navigation_buttons()
+    
+    def _go_next(self):
+        """Navigate to next wizard page"""
+        current = self.wizard_stack.currentIndex()
+        if current < len(self.wizard_pages) - 1:
+            self.wizard_stack.setCurrentIndex(current + 1)
+            self._update_navigation_buttons()
+            self._update_progress_indicator(current + 1)
+    
+    def _go_back(self):
+        """Navigate to previous wizard page"""
+        current = self.wizard_stack.currentIndex()
+        if current > 0:
+            self.wizard_stack.setCurrentIndex(current - 1)
+            self._update_navigation_buttons()
+            self._update_progress_indicator(current - 1)
+    
+    def _update_navigation_buttons(self):
+        """Update navigation button states based on current page"""
+        current = self.wizard_stack.currentIndex()
+        total = len(self.wizard_pages) - 1
+        
+        # Back button
+        self.btn_back.setEnabled(current > 0)
+        
+        # Next button - hide on last page
+        if current == total:
+            self.btn_next.hide()
+        else:
+            self.btn_next.show()
+            # Disable next if on dataset page and no dataset loaded
+            if current == 4:  # Dataset page
+                has_dataset = hasattr(self, 'dataset_manager') and len(self.dataset_manager.documents) > 0
+                self.btn_next.setEnabled(has_dataset)
+            # Disable next if on model page and model not initialized
+            elif current == 3:  # Model page
+                has_model = self.model is not None
+                self.btn_next.setEnabled(has_model)
+            else:
+                self.btn_next.setEnabled(True)
+        
+        # Start button - show only on training page
+        if current == 5:  # Training page
+            self.btn_start.show()
+            self.btn_stop.hide()
+        else:
+            self.btn_start.hide()
+            self.btn_stop.hide()
+        
+        # Update status bar message
+        messages = [
+            "Bem-vindo! Clique em 'Avançar' para começar.",
+            "Selecione a tecnologia de treinamento (CPU ou GPU).",
+            "Defina o propósito do seu modelo.",
+            "Configure a arquitetura do modelo e inicialize.",
+            "Carregue ou crie um dataset para treinamento.",
+            "Ajuste os parâmetros e inicie o treinamento.",
+            "Teste seu modelo gerando texto.",
+            "Veja os resultados e métricas do treinamento.",
+            "Gerencie seus modelos salvos."
+        ]
+        if current < len(messages):
+            self.status_bar.showMessage(messages[current])
+    
+    def _update_progress_indicator(self, current_index):
+        """Update the progress indicator labels"""
+        for i, lbl in enumerate(self.progress_indicator):
+            if i < current_index:
+                lbl.setStyleSheet("QLabel { color: #4CAF50; font-size: 12px; font-weight: bold; }")
+                lbl.setText(f"✓ {lbl.text().split('. ')[1]}")
+            elif i == current_index:
+                lbl.setStyleSheet("QLabel { color: #2196F3; font-size: 13px; font-weight: bold; }")
+                lbl.setText(f"➤ {lbl.text().split('. ')[1]}")
+            else:
+                lbl.setStyleSheet("QLabel { color: #9E9E9E; font-size: 11px; }")
+                lbl.setText(f"{i+1}. {lbl.text().split('. ')[1] if '. ' in lbl.text() else lbl.text()}")
     
     def _create_welcome_page(self) -> QWidget:
         """Create welcome page - Step 0"""
@@ -1790,89 +1866,12 @@ def main():
     app.setApplicationName("OpenHammer LLM Studio")
     app.setApplicationVersion("1.0.0")
     app.setOrganizationName("OpenHammer LLM Studio")
-    
+
     window = MainWindow()
     window.show()
-    
+
     sys.exit(app.exec())
 
 
 if __name__ == "__main__":
     main()
-
-    # Wizard navigation methods
-    def _go_next(self):
-        """Navigate to next wizard page"""
-        current = self.wizard_stack.currentIndex()
-        if current < len(self.wizard_pages) - 1:
-            self.wizard_stack.setCurrentIndex(current + 1)
-            self._update_navigation_buttons()
-            self._update_progress_indicator(current + 1)
-    
-    def _go_back(self):
-        """Navigate to previous wizard page"""
-        current = self.wizard_stack.currentIndex()
-        if current > 0:
-            self.wizard_stack.setCurrentIndex(current - 1)
-            self._update_navigation_buttons()
-            self._update_progress_indicator(current - 1)
-    
-    def _update_navigation_buttons(self):
-        """Update navigation button states based on current page"""
-        current = self.wizard_stack.currentIndex()
-        total = len(self.wizard_pages) - 1
-        
-        # Back button
-        self.btn_back.setEnabled(current > 0)
-        
-        # Next button - hide on last page
-        if current == total:
-            self.btn_next.hide()
-        else:
-            self.btn_next.show()
-            # Disable next if on dataset page and no dataset loaded
-            if current == 4:  # Dataset page
-                has_dataset = hasattr(self, 'dataset_manager') and len(self.dataset_manager.documents) > 0
-                self.btn_next.setEnabled(has_dataset)
-            # Disable next if on model page and model not initialized
-            elif current == 3:  # Model page
-                has_model = self.model is not None
-                self.btn_next.setEnabled(has_model)
-            else:
-                self.btn_next.setEnabled(True)
-        
-        # Start button - show only on training page
-        if current == 5:  # Training page
-            self.btn_start.show()
-            self.btn_stop.hide()
-        else:
-            self.btn_start.hide()
-            self.btn_stop.hide()
-        
-        # Update status bar message
-        messages = [
-            "Bem-vindo! Clique em 'Avançar' para começar.",
-            "Selecione a tecnologia de treinamento (CPU ou GPU).",
-            "Defina o propósito do seu modelo.",
-            "Configure a arquitetura do modelo e inicialize.",
-            "Carregue ou crie um dataset para treinamento.",
-            "Ajuste os parâmetros e inicie o treinamento.",
-            "Teste seu modelo gerando texto.",
-            "Veja os resultados e métricas do treinamento.",
-            "Gerencie seus modelos salvos."
-        ]
-        if current < len(messages):
-            self.status_bar.showMessage(messages[current])
-    
-    def _update_progress_indicator(self, current_index):
-        """Update the progress indicator labels"""
-        for i, lbl in enumerate(self.progress_indicator):
-            if i < current_index:
-                lbl.setStyleSheet("QLabel { color: #4CAF50; font-size: 12px; font-weight: bold; }")
-                lbl.setText(f"✓ {lbl.text().split('. ')[1]}")
-            elif i == current_index:
-                lbl.setStyleSheet("QLabel { color: #2196F3; font-size: 13px; font-weight: bold; }")
-                lbl.setText(f"➤ {lbl.text().split('. ')[1]}")
-            else:
-                lbl.setStyleSheet("QLabel { color: #9E9E9E; font-size: 11px; }")
-                lbl.setText(f"{i+1}. {lbl.text().split('. ')[1] if '. ' in lbl.text() else lbl.text()}")
