@@ -168,6 +168,10 @@ class TrainingStack:
             import torch
             if torch.cuda.is_available():
                 stacks.append(cls(use_gpu=True, backend="cuda", dependencies=["torch"]))
+            else:
+                # CUDA installed but not available - likely missing NVIDIA Container Toolkit
+                print("[WARNING] PyTorch has CUDA support but no GPU detected.")
+                print("          If using Docker/Podman, run with: --gpus all")
         except ImportError:
             pass
         
@@ -242,6 +246,17 @@ class HardwareProfile:
                 has_gpu = True
                 gpu_type = "metal"
                 recommended_stack = "mps"
+            else:
+                # PyTorch has CUDA but GPU not accessible - common in containers without --gpus all
+                print("[INFO] PyTorch CUDA support detected but GPU not accessible.")
+                print("       This usually means:")
+                print("       1. Running in Docker/Podman without '--gpus all' flag")
+                print("       2. NVIDIA Container Toolkit not installed/configured")
+                print("       3. User lacks permissions to access /dev/nvidia* devices")
+                print("")
+                print("       To fix in Docker/Podman:")
+                print("       docker run --gpus all <image>")
+                print("       podman run --device nvidia.com/gpu=all <image>")
         except ImportError:
             pass
         
