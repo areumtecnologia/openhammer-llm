@@ -184,8 +184,8 @@ pip install -r requirements.txt
 
 #### Windows
 ```powershell
-# Instalar PySide6
-pip install pyside6
+# Instalar dependências
+pip install pyside6 psutil datasets
 
 # Executar app
 python ui\app.py
@@ -193,8 +193,8 @@ python ui\app.py
 
 #### macOS
 ```bash
-# Instalar PySide6
-pip install pyside6
+# Instalar dependências
+pip install pyside6 psutil datasets
 
 # Executar app
 python ui/app.py
@@ -206,8 +206,8 @@ python ui/app.py
 sudo apt-get update
 sudo apt-get install -y python3-pip python3-venv libgl1-mesa-glx
 
-# Instalar PySide6
-pip install pyside6
+# Instalar dependências
+pip install pyside6 psutil datasets
 
 # Executar app
 python3 ui/app.py
@@ -225,8 +225,8 @@ sudo apt-get install -y python3-pip python3-venv
 python3 -m venv venv
 source venv/bin/activate
 
-# Instalar PySide6 (pode demorar)
-pip install pyside6
+# Instalar dependências (pode demorar)
+pip install pyside6 psutil datasets
 
 # Executar (use configs Tiny ou Small)
 python3 ui/app.py
