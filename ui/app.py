@@ -72,10 +72,25 @@ class TrainingWorker(QThread):
                     self.docs, callback=callback
                 )
             
-            # Generate samples
+            # Generate samples - handle both model types
             samples = []
             for _ in range(5):
-                sample = self.model.generate(self.tokenizer, max_tokens=30)
+                if TORCH_AVAILABLE and isinstance(self.model, TorchGPTModel):
+                    # Use Torch model's generate_text method
+                    sample = self.model.generate_text(
+                        self.tokenizer,
+                        prompt="",
+                        max_new_tokens=30,
+                        temperature=self.trainer.config.temperature,
+                        device=self.trainer.device
+                    )
+                else:
+                    # Use pure Python model
+                    sample = self.model.generate(
+                        self.tokenizer,
+                        max_tokens=30,
+                        temperature=self.trainer.config.temperature
+                    )
                 samples.append(sample)
             
             result = ExperimentResult(
