@@ -21,28 +21,18 @@ if [ "$create_venv" = "y" ]; then
     echo "✓ Virtual environment created and activated"
 fi
 
-# Install core dependencies
+# Install dependencies from requirements.txt
 echo ""
-echo "📦 Installing core dependencies..."
+echo "📦 Installing dependencies from requirements.txt..."
 pip install --upgrade pip
+pip install -r requirements.txt
 
-# Always install psutil for hardware detection
-pip install psutil
-
-# Ask about GUI
+# Ask about PyTorch with CUDA support
 echo ""
-read -p "Install PySide6 for GUI? (y/n): " install_gui
-if [ "$install_gui" = "y" ]; then
-    echo "📦 Installing PySide6..."
-    pip install PySide6
-fi
-
-# Ask about Hugging Face datasets
-echo ""
-read -p "Install Hugging Face datasets library? (y/n): " install_datasets
-if [ "$install_datasets" = "y" ]; then
-    echo "📦 Installing datasets..."
-    pip install datasets
+read -p "Install PyTorch with CUDA 12.4 support? (y/n): " install_torch
+if [ "$install_torch" = "y" ]; then
+    echo "📦 Installing PyTorch with CUDA 12.4..."
+    pip install torch --index-url https://download.pytorch.org/whl/cu124
 fi
 
 # Create directories
