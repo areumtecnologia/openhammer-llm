@@ -22,12 +22,15 @@ try:
     from PySide6.QtCore import Qt, QThread, Signal, QTimer, QSize
     from PySide6.QtGui import QFont, QIcon, QAction
     HAS_QT = True
-except ImportError:
+except ImportError as e:
     HAS_QT = False
-    print("⚠ PySide6 not installed. Install with: pip install PySide6")
+    print(f"⚠ PySide6 not installed. Install with: pip install PySide6")
+    print(f"   Error: {e}")
     sys.exit(1)
 
+# Double-check Qt availability
 if not HAS_QT:
+    print("⚠ PySide6 is not available. Please install it with: pip install PySide6")
     sys.exit(1)
 
 from core.model import (
