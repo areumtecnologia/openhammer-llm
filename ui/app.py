@@ -199,7 +199,8 @@ class MainWindow(QMainWindow):
         self.stack_combo = QComboBox()
         self._populate_stack_options()
         self.stack_combo.currentIndexChanged.connect(self._on_stack_changed)
-        stack_layout.addRow("Available Stacks:", self.stack_combo)
+        stack_layout.addWidget(QLabel("Available Stacks:"))
+        stack_layout.addWidget(self.stack_combo)
         
         # Stack details
         self.stack_details_label = QLabel()
